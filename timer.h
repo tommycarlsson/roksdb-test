@@ -20,15 +20,15 @@ public:
 
     void reset()
     {
-        m_elapsed = std::chrono::duration<double, std::milli>(0);
+        m_elapsed = std::chrono::duration<double>(0);
     }
 
     double elapsedSeconds()
     {
-        return m_elapsed.count()/1000.0;
+        return m_elapsed.count();
     }
 
 private:
     std::chrono::time_point<std::chrono::steady_clock> m_start;
-    std::chrono::duration<double, std::milli>          m_elapsed;
+    std::chrono::duration<double> m_elapsed;
 };

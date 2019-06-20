@@ -23,7 +23,9 @@
 using namespace rocksdb;
 using namespace std;
 
-std::string kDBPath = "data/rocksdb_simple_example";
+//std::string kDBPath = "data/rocksdb_simple_example";
+std::string kDBPath = "D:/disk-test/rocksdb_simple_example";
+
 
 auto logger = spdlog::basic_logger_st("logger", "log.txt");
 
@@ -165,7 +167,7 @@ void fill_blob(Blob& blob)
     });
 }
 
-double write_rocks(Blob& blob, int count)
+double write_rocks(Blob& blob, int count, string file_name)
 {
     DB* db;
     Options options;
@@ -177,7 +179,7 @@ double write_rocks(Blob& blob, int count)
 
     // open DB
     //Status s = DB::Open(options, "Z:/tmp/rocksdb-test/big-data", &db);
-    Status s = DB::Open(options, "data/big-data", &db);
+    Status s = DB::Open(options, file_name, &db);
 
     Timer timer;
         
@@ -195,7 +197,7 @@ double write_rocks(Blob& blob, int count)
     return timer.elapsedSeconds();
 }
 
-double read_rocks(Blob& blob, int count)
+double read_rocks(Blob& blob, int count, string file_name)
 {
     DB* db;
     Options options;
@@ -204,7 +206,7 @@ double read_rocks(Blob& blob, int count)
     options.OptimizeLevelStyleCompaction();
 
     // open DB
-    Status s = DB::Open(options, "data/big-data", &db);
+    Status s = DB::Open(options, file_name, &db);
 
     Timer timer;
 
@@ -268,9 +270,9 @@ double file_stream_no_sync_write(Blob& blob, int count, string file_name)
     return timer.elapsedSeconds();
 }
 
-void print_result(double secs, string const& msg, int blob_size, int nbr_of_blobs)
+void print_result(double secs, string const& msg, size_t blob_size, int nbr_of_blobs)
 {
-    spdlog::info("{}: {:.2f}s, {:.1f}MB/s", msg, secs, nbr_of_blobs * (blob_size / 1048576) / secs);
+    spdlog::info("{:7.2f}s, {:7.1f}MB/s :{}", secs, nbr_of_blobs * (blob_size / 1048576) / secs, msg);
 }
 
 int main(int argc, char* argv[])
@@ -279,9 +281,6 @@ int main(int argc, char* argv[])
     spdlog::set_level(spdlog::level::info);
     spdlog::flush_on(spdlog::level::info);
     spdlog::set_pattern("[%D %H:%M:%S] %v");
-
-    int blob_size{ 1048576 * 15 };
-    int nbr_of_blobs{ 100 };
 
     args::ArgumentParser parser("This is a io performance test program.");
     args::HelpFlag help(parser, "help", "Display this help menu", { 'h', "help" });
@@ -310,40 +309,36 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    if (nbrOfBlobs) nbr_of_blobs = nbrOfBlobs.Get();
-    if (blobSize) blob_size = blobSize.Get();
+    int const nbr_of_blobs = nbrOfBlobs.Get();
+    int const blob_size = blobSize.Get();
 
-    spdlog::info("===== Start test for blob of size {} bytes and {} nbr of blobs ============",
+    spdlog::info("===== Start test with a blob of size {} bytes and with {} nbr of blobs ============",
         blob_size, nbr_of_blobs);
-
-    Timer timer;
 
     hello_world();
     just_read();
 
-    random_device rnd;
-    default_random_engine eng(rnd());
-
     Blob blob(blob_size, '1');
+
+    Timer timer;
+    timer.start();
 
     double secs(0);
 
-    timer.start();
+    secs = write_rocks(blob, nbr_of_blobs, "D:/disk-test/rocksdb");
+    print_result(secs, "Big data single write", blob.size(), nbr_of_blobs);
 
-    secs = write_rocks(blob, nbr_of_blobs);
-    print_result(secs, "Big data single write", blob_size, nbr_of_blobs);
+    secs = read_rocks(blob, nbr_of_blobs, "D:/disk-test/rocksdb");
+    print_result(secs, "Big data single read", blob.size(), nbr_of_blobs);
 
-    secs = read_rocks(blob, nbr_of_blobs);
-    print_result(secs, "Big data single read", blob_size, nbr_of_blobs);
+    secs = file_stream_write(blob, nbr_of_blobs, "D:/disk-test/file_stream_write");
+    print_result(secs, "file_stream_write", blob.size(), nbr_of_blobs);
 
-    secs = file_stream_write(blob, nbr_of_blobs, "data/file_stream_write");
-    print_result(secs, "file_stream_write", blob_size, nbr_of_blobs);
+    secs = file_stream_write(blob, nbr_of_blobs, "D:/disk-test/c_style_io_write");
+    print_result(secs, "c_style_io_write", blob.size(), nbr_of_blobs);
 
-    secs = file_stream_write(blob, nbr_of_blobs, "data/c_style_io_write");
-    print_result(secs, "c_style_io_write", blob_size, nbr_of_blobs);
-
-    secs = file_stream_write(blob, nbr_of_blobs, "data/file_stream_no_sync_write");
-    print_result(secs, "file_stream_no_sync_write", blob_size, nbr_of_blobs);
+    secs = file_stream_write(blob, nbr_of_blobs, "D:/disk-test/file_stream_no_sync_write");
+    print_result(secs, "file_stream_no_sync_write", blob.size(), nbr_of_blobs);
 
     timer.stop();
     spdlog::info("Total time: {}s", timer.elapsedSeconds());
