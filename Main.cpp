@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <iostream>
 #include <fstream>
+#include <sstream>
 
 #include <rocksdb/db.h>
 #include <rocksdb/slice.h>
@@ -167,6 +168,36 @@ void fill_blob(Blob& blob)
     });
 }
 
+void write_chunks(size_t index, function<void(Blob const &)> const writer)
+{
+    static Blob const chunk1(96, '1');
+    static Blob const chunk2(90, '2');
+    static Blob const chunk3(96, '3');
+    static Blob const chunk4(60, '4');
+    static array<Blob, 4> const chunks{ chunk1, chunk2, chunk3, chunk4 };
+    static size_t const chunks_size(96 + 90 + 96 + 60);
+    while (index > chunks_size)
+    {
+        for_each(chunks.begin(), chunks.end(), writer);
+        index -= chunks_size;
+    }
+}
+
+void read_chunks(size_t index, function<void(Blob&)> const reader)
+{
+    static Blob chunk1(96);
+    static Blob chunk2(90);
+    static Blob chunk3(96);
+    static Blob chunk4(60);
+    static array<Blob, 4> chunks{ chunk1, chunk2, chunk3, chunk4 };
+    static size_t const chunks_size(96 + 90 + 96 + 60);
+    while (index > chunks_size)
+    {
+        for_each(chunks.begin(), chunks.end(), reader);
+        index -= chunks_size;
+    }
+}
+
 double write_rocks(Blob& blob, int count, string file_name)
 {
     DB* db;
@@ -239,6 +270,70 @@ double file_stream_write(Blob& blob, int count, string file_name)
     return timer.elapsedSeconds();
 }
 
+double file_stream_read(Blob& blob, int count, string file_name)
+{
+    Timer timer;
+    for (auto i(0); i != count; ++i)
+    {
+        auto name = file_name + to_string(i);
+        timer.start();
+        auto myfile = ifstream(name, ios::binary);
+        myfile.read(blob.data(), blob.size());
+        myfile.close();
+        timer.stop();
+    }
+    return timer.elapsedSeconds();
+}
+
+double file_stream_write_seq(size_t blob_size, int count, string file_name)
+{
+    struct Writer
+    {
+        Writer(ofstream& ofs) : m_ofs(ofs) {}
+        void write(Blob const& blob) const { m_ofs.write(blob.data(), blob.size()); }
+        ofstream& m_ofs;
+    };
+
+    using std::placeholders::_1;
+
+    Timer timer;
+    for (auto i(0); i != count; ++i)
+    {
+        auto name = file_name + to_string(i);
+        timer.start();
+        auto myfile = ofstream(name, ios::binary);
+        write_chunks(blob_size, bind(&Writer::write, Writer(myfile), _1));
+        myfile.close();
+        timer.stop();
+    }
+    return timer.elapsedSeconds();
+}
+
+double file_stream_read_seq(size_t blob_size, int count, string file_name)
+{
+    struct Reader
+    {
+        Reader(ifstream& ifs) : m_ifs(ifs) {}
+        void read(Blob& blob) const { m_ifs.read(blob.data(), blob.size()); }
+        ifstream& m_ifs;
+    };
+
+    using std::placeholders::_1;
+
+    Timer timer;
+    for (auto i(0); i != count; ++i)
+    {
+        auto name = file_name + to_string(i);
+        timer.start();
+        auto myfile = ifstream(name, ios::binary);
+        read_chunks(blob_size, bind(&Reader::read, Reader(myfile), _1));
+        myfile.close();
+        timer.stop();
+    }
+    return timer.elapsedSeconds();
+}
+
+
 double c_style_io_write(Blob& blob, int count, string file_name)
 {
     Timer timer;
@@ -246,7 +341,7 @@ double c_style_io_write(Blob& blob, int count, string file_name)
     {
         auto name = file_name + to_string(i);
         timer.start();
-        FILE* file = fopen(file_name.c_str(), "wb");
+        FILE* file = fopen(name.c_str(), "wb");
         fwrite(blob.data(), 1, blob.size(), file);
         fclose(file);
         timer.stop();
@@ -254,21 +349,69 @@ double c_style_io_write(Blob& blob, int count, string file_name)
     return timer.elapsedSeconds();
 }
 
-double file_stream_no_sync_write(Blob& blob, int count, string file_name)
+double c_style_io_read(Blob& blob, int count, string file_name)
 {
     Timer timer;
-    ios_base::sync_with_stdio(false);
     for (auto i(0); i != count; ++i)
     {
         auto name = file_name + to_string(i);
         timer.start();
-        auto myfile = ofstream(file_name, ios::binary);
-        myfile.write(blob.data(), blob.size());
-        myfile.close();
+        FILE* file = fopen(name.c_str(), "rb");
+        fread(blob.data(), 1, blob.size(), file);
+        fclose(file);
         timer.stop();
     }
     return timer.elapsedSeconds();
 }
+
+double c_style_io_write_seq(size_t blob_size, int count, string file_name)
+{
+    struct Writer
+    {
+        Writer(FILE* file) : m_file(file) {}
+        void write(Blob const& blob) const { fwrite(blob.data(), 1, blob.size(), m_file); }
+        FILE* m_file;
+    };
+
+    using std::placeholders::_1;
+
+    Timer timer;
+    for (auto i(0); i != count; ++i)
+    {
+        auto name = file_name + to_string(i);
+        timer.start();
+        FILE* file = fopen(name.c_str(), "wb");
+        write_chunks(blob_size, bind(&Writer::write, Writer(file), _1));
+        fclose(file);
+        timer.stop();
+    }
+    return timer.elapsedSeconds();
+}
+
+double c_style_io_read_seq(size_t blob_size, int count, string file_name)
+{
+    struct Reader
+    {
+        Reader(FILE* file) : m_file(file) {}
+        void read(Blob& blob) const { fread(blob.data(), 1, blob.size(), m_file); }
+        FILE* m_file;
+    };
+
+    using std::placeholders::_1;
+
+    Timer timer;
+    for (auto i(0); i != count; ++i)
+    {
+        auto name = file_name + to_string(i);
+        timer.start();
+        FILE* file = fopen(name.c_str(), "rb");
+        read_chunks(blob_size, bind(&Reader::read, Reader(file), _1));
+        fclose(file);
+        timer.stop();
+    }
+    return timer.elapsedSeconds();
+}
+
 
 void print_result(double secs, string const& msg, size_t blob_size, int nbr_of_blobs)
 {
@@ -282,11 +425,26 @@ int main(int argc, char* argv[])
     spdlog::flush_on(spdlog::level::info);
     spdlog::set_pattern("[%D %H:%M:%S] %v");
 
-    args::ArgumentParser parser("This is a io performance test program.");
+    ostringstream os;
+    os << "To run one test explicitly\n";
+    os << "0\t All tests (default)\n";
+    os << "1\t write_rocks\n";
+    os << "2\t file_stream_write\n";
+    os << "3\t c_style_io_write\n";
+    os << "4\t read_rocks\n";
+    os << "5\t file_stream_read\n";
+    os << "6\t c_style_io_read\n";
+    os << "7\t file_stream_write_seq\n";
+    os << "8\t c_style_io_write_seq\n";
+    os << "9\t file_stream_read_seq\n";
+    os << "10\t c_style_io_read_seq\n";
+
+    args::ArgumentParser parser("This is a io performance test program.", os.str());
     args::HelpFlag help(parser, "help", "Display this help menu", { 'h', "help" });
     args::CompletionFlag completion(parser, { "complete" });
     args::ValueFlag<int> nbrOfBlobs(parser, "nbrOfBlobs", "Number of blobs", { 'n' }, 100);
     args::ValueFlag<int> blobSize(parser, "blobSize", "Size of a blob [MB]", { 's' }, 1048576 * 15);
+    args::PositionalList<int> tests(parser, "tests", "Tests to run");
 
     try
     {
@@ -294,29 +452,31 @@ int main(int argc, char* argv[])
     }
     catch (const args::Completion& e)
     {
-        std::cout << e.what();
+        cout << e.what();
         return 0;
     }
     catch (const args::Help&)
     {
-        std::cout << parser;
+        cout << parser;
         return 0;
     }
     catch (const args::ParseError& e)
     {
-        std::cerr << e.what() << std::endl;
-        std::cerr << parser;
+        cerr << e.what() << std::endl;
+        cerr << parser;
         return 1;
     }
+
+    auto t = args::get(tests);
+
+    //hello_world();
+    //just_read();
 
     int const nbr_of_blobs = nbrOfBlobs.Get();
     int const blob_size = blobSize.Get();
 
     spdlog::info("===== Start test with a blob of size {} bytes and with {} nbr of blobs ============",
         blob_size, nbr_of_blobs);
-
-    hello_world();
-    just_read();
 
     Blob blob(blob_size, '1');
 
@@ -325,20 +485,75 @@ int main(int argc, char* argv[])
 
     double secs(0);
 
-    secs = write_rocks(blob, nbr_of_blobs, "D:/disk-test/rocksdb");
-    print_result(secs, "Big data single write", blob.size(), nbr_of_blobs);
+    if (t.empty() || find(t.begin(), t.end(), 1) != t.end())
+    {
+        cout << "Running write_rocks ..." << endl;
+        secs = write_rocks(blob, nbr_of_blobs, "D:/disk-test/rocksdb");
+        print_result(secs, "write_rocks", blob.size(), nbr_of_blobs);
+    }
 
-    secs = read_rocks(blob, nbr_of_blobs, "D:/disk-test/rocksdb");
-    print_result(secs, "Big data single read", blob.size(), nbr_of_blobs);
+    if (t.empty() || find(t.begin(), t.end(), 2) != t.end())
+    {
+        cout << "Running file_stream_write ..." << endl;
+        secs = file_stream_write(blob, nbr_of_blobs, "D:/disk-test/file_stream_write");
+        print_result(secs, "file_stream_write", blob.size(), nbr_of_blobs);
+    }
 
-    secs = file_stream_write(blob, nbr_of_blobs, "D:/disk-test/file_stream_write");
-    print_result(secs, "file_stream_write", blob.size(), nbr_of_blobs);
+    if (t.empty() || find(t.begin(), t.end(), 3) != t.end())
+    {
+        cout << "Running c_style_io_write ..." << endl;
+        secs = c_style_io_write(blob, nbr_of_blobs, "D:/disk-test/c_style_io_write");
+        print_result(secs, "c_style_io_write", blob.size(), nbr_of_blobs);
+    }
+    
+    if (t.empty() || find(t.begin(), t.end(), 4) != t.end())
+    {
+        cout << "Running read_rocks ..." << endl;
+        secs = read_rocks(blob, nbr_of_blobs, "D:/disk-test/rocksdb");
+        print_result(secs, "read_rocks", blob.size(), nbr_of_blobs);
+    }
 
-    secs = file_stream_write(blob, nbr_of_blobs, "D:/disk-test/c_style_io_write");
-    print_result(secs, "c_style_io_write", blob.size(), nbr_of_blobs);
+    if (t.empty() || find(t.begin(), t.end(), 5) != t.end())
+    {
+        cout << "Running file_stream_read ..." << endl;
+        secs = file_stream_write(blob, nbr_of_blobs, "D:/disk-test/file_stream_write");
+        print_result(secs, "file_stream_read", blob.size(), nbr_of_blobs);
+    }
 
-    secs = file_stream_write(blob, nbr_of_blobs, "D:/disk-test/file_stream_no_sync_write");
-    print_result(secs, "file_stream_no_sync_write", blob.size(), nbr_of_blobs);
+    if (t.empty() || find(t.begin(), t.end(), 6) != t.end())
+    {
+        cout << "Running c_style_io_read ..." << endl;
+        secs = c_style_io_write(blob, nbr_of_blobs, "D:/disk-test/c_style_io_write");
+        print_result(secs, "c_style_io_read", blob.size(), nbr_of_blobs);
+    }
+
+    if (t.empty() || find(t.begin(), t.end(), 7) != t.end())
+    {
+        cout << "Running file_stream_write_seq ..." << endl;
+        secs = file_stream_write_seq(blob.size(), nbr_of_blobs, "D:/disk-test/file_stream_write_seq");
+        print_result(secs, "file_stream_write_seq", blob.size(), nbr_of_blobs);
+    }
+
+    if (t.empty() || find(t.begin(), t.end(), 8) != t.end())
+    {
+        cout << "Running c_style_io_write_seq ..." << endl;
+        secs = c_style_io_write_seq(blob.size(), nbr_of_blobs, "D:/disk-test/c_style_io_write_seq");
+        print_result(secs, "c_style_io_write_seq", blob.size(), nbr_of_blobs);
+    }
+
+    if (t.empty() || find(t.begin(), t.end(), 9) != t.end())
+    {
+        cout << "Running file_stream_read_seq ..." << endl;
+        secs = file_stream_write_seq(blob.size(), nbr_of_blobs, "D:/disk-test/file_stream_write_seq");
+        print_result(secs, "file_stream_read_seq", blob.size(), nbr_of_blobs);
+    }
+
+    if (t.empty() || find(t.begin(), t.end(), 10) != t.end())
+    {
+        cout << "Running c_style_io_read_seq ..." << endl;
+        secs = c_style_io_write_seq(blob.size(), nbr_of_blobs, "D:/disk-test/c_style_io_write_seq");
+        print_result(secs, "c_style_io_read_seq", blob.size(), nbr_of_blobs);
+    }
 
     timer.stop();
     spdlog::info("Total time: {}s", timer.elapsedSeconds());
