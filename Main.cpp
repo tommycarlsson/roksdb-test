@@ -3,6 +3,10 @@
 //  COPYING file in the root directory) and Apache 2.0 License
 //  (found in the LICENSE.Apache file in the root directory).
 
+//#ifdef _WIN32
+#include <Windows.h>
+#include <Psapi.h>
+//#endif
 #include <cstdio>
 #include <string>
 #include <random>
@@ -15,6 +19,7 @@
 #include <rocksdb/db.h>
 #include <rocksdb/slice.h>
 #include <rocksdb/options.h>
+#include "H5Cpp.h"
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <args.hxx>
@@ -30,6 +35,7 @@ std::string kDBPath = "D:/disk-test/rocksdb_simple_example";
 
 auto logger = spdlog::basic_logger_st("logger", "log.txt");
 
+#ifdef ROCKSDB
 int hello_world()
 {
     DB* db;
@@ -152,6 +158,7 @@ int just_read()
 
     return 0;
 }
+#endif
 
 using Blob = vector<char>;
 
@@ -198,6 +205,7 @@ void read_chunks(size_t index, function<void(Blob&)> const reader)
     }
 }
 
+#ifdef ROCKSDB
 double write_rocks(Blob& blob, int count, string file_name)
 {
     DB* db;
@@ -254,6 +262,7 @@ double read_rocks(Blob& blob, int count, string file_name)
 
     return timer.elapsedSeconds();
 }
+#endif // ROCKSDB
 
 double file_stream_write(Blob& blob, int count, string file_name)
 {
@@ -412,6 +421,55 @@ double c_style_io_read_seq(size_t blob_size, int count, string file_name)
     return timer.elapsedSeconds();
 }
 
+double hdf5_write(Blob& blob, int count, string file_name)
+{
+    using namespace H5;
+
+    hsize_t dims[1];
+    dims[0] = blob.size();
+    DataSpace dataspace(1, dims);
+
+    Timer timer;
+    for (auto i(0); i != count; ++i)
+    {
+        fill_blob(blob);
+        auto name = file_name + to_string(i) + ".hdf5";
+        //cout << "Writing: " << name << endl;
+        timer.start();
+        H5File file(name, H5F_ACC_TRUNC);
+        DataSet dataset = file.createDataSet("blob", PredType::STD_I8LE, dataspace);
+        dataset.write(blob.data(), PredType::NATIVE_CHAR);
+        timer.stop();
+    }
+    return timer.elapsedSeconds();
+}
+
+double hdf5_read(Blob& blob, int count, string file_name)
+{
+    using namespace H5;
+
+    hsize_t dims[1];
+    dims[0] = blob.size();
+    DataSpace dataspace(1, dims);
+
+    Timer timer;
+    for (auto i(0); i != count; ++i)
+    {
+        auto name = file_name + to_string(i) + ".hdf5";
+        //cout << "Reading: " << name << endl;
+        timer.start();
+        H5File file(name, H5F_ACC_RDONLY);
+        DataSet dataset = file.openDataSet("blob");
+        dataset.read(blob.data(), PredType::NATIVE_CHAR);
+        timer.stop();
+    }
+    return timer.elapsedSeconds();
+}
+
+void emptyWorkingSet()
+{
+    ::EmptyWorkingSet(::GetCurrentProcess());
+}
 
 void print_result(double secs, string const& msg, size_t blob_size, int nbr_of_blobs)
 {
@@ -438,6 +496,8 @@ int main(int argc, char* argv[])
     os << "8\t c_style_io_write_seq\n";
     os << "9\t file_stream_read_seq\n";
     os << "10\t c_style_io_read_seq\n";
+    os << "11\t hdf5_write\n";
+    os << "12\t hdf5_read\n";
 
     args::ArgumentParser parser("This is a io performance test program.", os.str());
     args::HelpFlag help(parser, "help", "Display this help menu", { 'h', "help" });
@@ -485,12 +545,14 @@ int main(int argc, char* argv[])
 
     double secs(0);
 
+#ifdef ROCKSDB
     if (t.empty() || find(t.begin(), t.end(), 1) != t.end())
     {
         cout << "Running write_rocks ..." << endl;
         secs = write_rocks(blob, nbr_of_blobs, "D:/disk-test/rocksdb");
         print_result(secs, "write_rocks", blob.size(), nbr_of_blobs);
     }
+#endif // ROCKSDB
 
     if (t.empty() || find(t.begin(), t.end(), 2) != t.end())
     {
@@ -506,24 +568,26 @@ int main(int argc, char* argv[])
         print_result(secs, "c_style_io_write", blob.size(), nbr_of_blobs);
     }
     
+#ifdef ROCKSDB
     if (t.empty() || find(t.begin(), t.end(), 4) != t.end())
     {
         cout << "Running read_rocks ..." << endl;
         secs = read_rocks(blob, nbr_of_blobs, "D:/disk-test/rocksdb");
         print_result(secs, "read_rocks", blob.size(), nbr_of_blobs);
     }
+#endif // ROCKSDB
 
     if (t.empty() || find(t.begin(), t.end(), 5) != t.end())
     {
         cout << "Running file_stream_read ..." << endl;
-        secs = file_stream_write(blob, nbr_of_blobs, "D:/disk-test/file_stream_write");
+        secs = file_stream_read(blob, nbr_of_blobs, "D:/disk-test/file_stream_write");
         print_result(secs, "file_stream_read", blob.size(), nbr_of_blobs);
     }
 
     if (t.empty() || find(t.begin(), t.end(), 6) != t.end())
     {
         cout << "Running c_style_io_read ..." << endl;
-        secs = c_style_io_write(blob, nbr_of_blobs, "D:/disk-test/c_style_io_write");
+        secs = c_style_io_read(blob, nbr_of_blobs, "D:/disk-test/c_style_io_write");
         print_result(secs, "c_style_io_read", blob.size(), nbr_of_blobs);
     }
 
@@ -544,15 +608,30 @@ int main(int argc, char* argv[])
     if (t.empty() || find(t.begin(), t.end(), 9) != t.end())
     {
         cout << "Running file_stream_read_seq ..." << endl;
-        secs = file_stream_write_seq(blob.size(), nbr_of_blobs, "D:/disk-test/file_stream_write_seq");
+        secs = file_stream_read_seq(blob.size(), nbr_of_blobs, "D:/disk-test/file_stream_write_seq");
         print_result(secs, "file_stream_read_seq", blob.size(), nbr_of_blobs);
     }
 
     if (t.empty() || find(t.begin(), t.end(), 10) != t.end())
     {
         cout << "Running c_style_io_read_seq ..." << endl;
-        secs = c_style_io_write_seq(blob.size(), nbr_of_blobs, "D:/disk-test/c_style_io_write_seq");
+        secs = c_style_io_read_seq(blob.size(), nbr_of_blobs, "D:/disk-test/c_style_io_write_seq");
         print_result(secs, "c_style_io_read_seq", blob.size(), nbr_of_blobs);
+    }
+
+    if (t.empty() || find(t.begin(), t.end(), 11) != t.end())
+    {
+        cout << "Running hdf5_write ..." << endl;
+        secs = hdf5_write(blob, nbr_of_blobs, "D:/disk-test/hdf5_write");
+        print_result(secs, "hdf5_write", blob.size(), nbr_of_blobs);
+    }
+
+    if (t.empty() || find(t.begin(), t.end(), 12) != t.end())
+    {
+        emptyWorkingSet();
+        cout << "Running hdf5_read ..." << endl;
+        secs = hdf5_read(blob, nbr_of_blobs, "D:/disk-test/hdf5_write");
+        print_result(secs, "hdf5_read", blob.size(), nbr_of_blobs);
     }
 
     timer.stop();
