@@ -1,4 +1,4 @@
-// Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
+﻿// Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
 //  This source code is licensed under both the GPLv2 (found in the
 //  COPYING file in the root directory) and Apache 2.0 License
 //  (found in the LICENSE.Apache file in the root directory).
@@ -19,7 +19,10 @@
 #include <rocksdb/db.h>
 #include <rocksdb/slice.h>
 #include <rocksdb/options.h>
-#include "H5Cpp.h"
+#include <H5Cpp.h>
+#include <highfive/H5DataSet.hpp>
+#include <highfive/H5DataSpace.hpp>
+#include <highfive/H5File.hpp>
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <args.hxx>
@@ -466,10 +469,45 @@ double hdf5_read(Blob& blob, int count, string file_name)
     return timer.elapsedSeconds();
 }
 
+double hdf5_write_seq(Blob& blob, int count, string file_name)
+{
+    using namespace H5;
+
+#pragma pack(push,1)
+    struct SLSSCommonHeader
+    {
+        char cFileSignature[6]{ 'A', 'B', 'C', 'C', 'D', 'E' };
+        int nVersion = 8;
+    } header;
+#pragma pack( pop )
+
+    hsize_t dims[1];
+    dims[0] = blob.size();
+    DataSpace dataspace(1, dims);
+
+    auto name = file_name + ".hdf5";
+
+    FileCreatPropList fileProp;
+    fileProp.setUserblock(512);
+
+    H5File file(name, H5F_ACC_TRUNC, fileProp);
+    DataSet dataset = file.createDataSet("blob", PredType::STD_I8LE, dataspace);
+    dataset.write(blob.data(), PredType::NATIVE_CHAR);
+
+    file.close();
+
+    auto myfile = ofstream(name, ios::binary);
+    myfile.write((char*)&header, sizeof(header));
+    myfile.close();
+}
+
 void emptyWorkingSet()
 {
+#ifdef _WIN32
     ::EmptyWorkingSet(::GetCurrentProcess());
+#endif // _WIN32
 }
+    
 
 void print_result(double secs, string const& msg, size_t blob_size, int nbr_of_blobs)
 {
@@ -498,6 +536,7 @@ int main(int argc, char* argv[])
     os << "10\t c_style_io_read_seq\n";
     os << "11\t hdf5_write\n";
     os << "12\t hdf5_read\n";
+    os << "13\t hdf5_read_seq\n";
 
     args::ArgumentParser parser("This is a io performance test program.", os.str());
     args::HelpFlag help(parser, "help", "Display this help menu", { 'h', "help" });
@@ -632,6 +671,13 @@ int main(int argc, char* argv[])
         cout << "Running hdf5_read ..." << endl;
         secs = hdf5_read(blob, nbr_of_blobs, "D:/disk-test/hdf5_write");
         print_result(secs, "hdf5_read", blob.size(), nbr_of_blobs);
+    }
+
+    if (t.empty() || find(t.begin(), t.end(), 13) != t.end())
+    {
+        cout << "Running hdf5_write_seq ..." << endl;
+        secs = hdf5_write_seq(blob, nbr_of_blobs, "D:/disk-test/hdf5_write_seq");
+        print_result(secs, "hdf5_write_seq", blob.size(), nbr_of_blobs);
     }
 
     timer.stop();
