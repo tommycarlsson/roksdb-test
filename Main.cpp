@@ -481,24 +481,55 @@ double hdf5_write_seq(Blob& blob, int count, string file_name)
     } header;
 #pragma pack( pop )
 
-    hsize_t dims[1];
-    dims[0] = blob.size();
-    DataSpace dataspace(1, dims);
+    static Blob const chunk1(96, '1');
+    static Blob const chunk2(60, '2');
+
+    hsize_t fdims[1]{ 1 };
+    hsize_t fdims_max[1]{ H5S_UNLIMITED };
+    DataSpace fspace(1, fdims, fdims_max);
 
     auto name = file_name + ".hdf5";
 
     FileCreatPropList fileProp;
     fileProp.setUserblock(512);
 
+    DSetCreatPropList cparms;
+    hsize_t chunk_dims[1]{ 96 };
+    cparms.setChunk(1, chunk_dims);
+
+    char fill_val = '0';
+    cparms.setFillValue(PredType::NATIVE_CHAR, &fill_val);
+
     H5File file(name, H5F_ACC_TRUNC, fileProp);
-    DataSet dataset = file.createDataSet("blob", PredType::STD_I8LE, dataspace);
-    dataset.write(blob.data(), PredType::NATIVE_CHAR);
+    DataSet dataset = file.createDataSet("blobs", PredType::STD_I8LE, fspace, cparms);
+
+    hsize_t size[1]{ 96 };
+    dataset.extend(size);
+
+    hsize_t offset[1]{ 0 };
+    hsize_t dims[1]{ 96 };
+    fspace = dataset.getSpace();
+    fspace.selectHyperslab(H5S_SELECT_SET, dims, offset);
+    dataset.write(chunk1.data(), PredType::NATIVE_CHAR, H5::DataSpace::ALL, fspace);
+
+    size[0] += 60;
+    dataset.extend(size);
+
+    offset[0] = 96;
+    dims[0] = 60;
+    fspace = dataset.getSpace();
+    fspace.selectHyperslab(H5S_SELECT_SET, dims, offset);
+    DataSpace mspace2(1, dims);
+    dataset.write(chunk2.data(), PredType::NATIVE_CHAR, mspace2, fspace);
+    //fspace.selectNone();
 
     file.close();
 
-    auto myfile = ofstream(name, ios::binary);
+    auto myfile = ofstream(name, ios::binary | ios::in | ios::out);
     myfile.write((char*)&header, sizeof(header));
     myfile.close();
+
+    return 0.0;
 }
 
 void emptyWorkingSet()
