@@ -428,6 +428,14 @@ double hdf5_write(Blob& blob, int count, string file_name)
 {
     using namespace H5;
 
+#pragma pack(push,1)
+    struct SLSSCommonHeader
+    {
+        char cFileSignature[6]{ 'A', 'B', 'C', 'C', 'D', 'E' };
+        int nVersion = 8;
+    } header;
+#pragma pack( pop )
+
     hsize_t dims[1];
     dims[0] = blob.size();
     DataSpace dataspace(1, dims);
@@ -439,9 +447,18 @@ double hdf5_write(Blob& blob, int count, string file_name)
         auto name = file_name + to_string(i) + ".hdf5";
         //cout << "Writing: " << name << endl;
         timer.start();
-        H5File file(name, H5F_ACC_TRUNC);
+        FileCreatPropList fileProp;
+        fileProp.setUserblock(512);
+        H5File file(name, H5F_ACC_TRUNC, fileProp);
         DataSet dataset = file.createDataSet("blob", PredType::STD_I8LE, dataspace);
         dataset.write(blob.data(), PredType::NATIVE_CHAR);
+
+        file.close();
+
+        auto myfile = ofstream(name, ios::binary | ios::in | ios::out);
+        myfile.write((char*)&header, sizeof(header));
+        myfile.close();
+
         timer.stop();
     }
     return timer.elapsedSeconds();
@@ -474,31 +491,27 @@ double hdf5_write_seq(size_t blob_size, int count, string file_name)
     using namespace H5;
     using std::placeholders::_1;
 
-#pragma pack(push,1)
-    struct SLSSCommonHeader
-    {
-        char cFileSignature[6]{ 'A', 'B', 'C', 'C', 'D', 'E' };
-        int nVersion = 8;
-    } header;
-#pragma pack( pop )
-
     struct Writer
     {
-        Writer(DataSet& dataset) : m_dataset(dataset), m_cursor(0) {}
+        Writer(DataSet& dataset) : m_dataset(dataset) {}
         void write(Blob const& blob)
         {
-            hsize_t size[1]{ m_cursor + blob.size() };
-            m_dataset.extend(size);
-            DataSpace fspace(m_dataset.getSpace());
+            if (m_cursor + blob.size() >= m_size[0])
+            {
+                m_size[0] += 1024*1024;
+                m_dataset.extend(m_size);
+            }
             hsize_t dims[1]{ blob.size() };
             DataSpace mspace(1, dims);
             hsize_t offset[1]{ m_cursor };
+            DataSpace fspace(m_dataset.getSpace());
             fspace.selectHyperslab(H5S_SELECT_SET, dims, offset);
             m_dataset.write(blob.data(), PredType::NATIVE_CHAR, mspace, fspace);
             m_cursor += blob.size();
         }
         DataSet& m_dataset;
-        hsize_t m_cursor;
+        hsize_t m_cursor{ 0 };
+        hsize_t m_size[1]{ 0 };
     };
 
     Timer timer;
@@ -508,31 +521,21 @@ double hdf5_write_seq(size_t blob_size, int count, string file_name)
         
         timer.start();
 
-        hsize_t fdims[1]{ 1 };
+        hsize_t fdims[1]{ 1024*1024*15 };
         hsize_t fdims_max[1]{ H5S_UNLIMITED };
         DataSpace fspace(1, fdims, fdims_max);
 
-        FileCreatPropList fileProp;
-        fileProp.setUserblock(512);
-
         DSetCreatPropList cparms;
-        hsize_t chunk_dims[1]{ 96 };
+        hsize_t chunk_dims[1]{ 1024*1024 };
         cparms.setChunk(1, chunk_dims);
 
-        char fill_val = '0';
-        cparms.setFillValue(PredType::NATIVE_CHAR, &fill_val);
-
-        H5File file(name, H5F_ACC_TRUNC, fileProp);
+        H5File file(name, H5F_ACC_TRUNC);
         DataSet dataset = file.createDataSet("blobs", PredType::STD_I8LE, fspace, cparms);
 
         Writer writer(dataset);
         write_chunks(blob_size, bind(&Writer::write, &writer, _1));
 
         file.close();
-
-        auto myfile = ofstream(name, ios::binary | ios::in | ios::out);
-        myfile.write((char*)&header, sizeof(header));
-        myfile.close();
 
         timer.stop();
     }
