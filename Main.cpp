@@ -435,7 +435,7 @@ double hdf5_write(Blob& blob, int count, string file_name)
     Timer timer;
     for (auto i(0); i != count; ++i)
     {
-        fill_blob(blob);
+        //fill_blob(blob);
         auto name = file_name + to_string(i) + ".hdf5";
         //cout << "Writing: " << name << endl;
         timer.start();
@@ -469,9 +469,10 @@ double hdf5_read(Blob& blob, int count, string file_name)
     return timer.elapsedSeconds();
 }
 
-double hdf5_write_seq(Blob& blob, int count, string file_name)
+double hdf5_write_seq(size_t blob_size, int count, string file_name)
 {
     using namespace H5;
+    using std::placeholders::_1;
 
 #pragma pack(push,1)
     struct SLSSCommonHeader
@@ -481,55 +482,61 @@ double hdf5_write_seq(Blob& blob, int count, string file_name)
     } header;
 #pragma pack( pop )
 
-    static Blob const chunk1(96, '1');
-    static Blob const chunk2(60, '2');
+    struct Writer
+    {
+        Writer(DataSet& dataset) : m_dataset(dataset), m_cursor(0) {}
+        void write(Blob const& blob)
+        {
+            hsize_t size[1]{ m_cursor + blob.size() };
+            m_dataset.extend(size);
+            DataSpace fspace(m_dataset.getSpace());
+            hsize_t dims[1]{ blob.size() };
+            DataSpace mspace(1, dims);
+            hsize_t offset[1]{ m_cursor };
+            fspace.selectHyperslab(H5S_SELECT_SET, dims, offset);
+            m_dataset.write(blob.data(), PredType::NATIVE_CHAR, mspace, fspace);
+            m_cursor += blob.size();
+        }
+        DataSet& m_dataset;
+        hsize_t m_cursor;
+    };
 
-    hsize_t fdims[1]{ 1 };
-    hsize_t fdims_max[1]{ H5S_UNLIMITED };
-    DataSpace fspace(1, fdims, fdims_max);
+    Timer timer;
+    for (auto i(0); i != count; ++i)
+    {
+        auto name = file_name + to_string(i) + ".hdf5";
+        
+        timer.start();
 
-    auto name = file_name + ".hdf5";
+        hsize_t fdims[1]{ 1 };
+        hsize_t fdims_max[1]{ H5S_UNLIMITED };
+        DataSpace fspace(1, fdims, fdims_max);
 
-    FileCreatPropList fileProp;
-    fileProp.setUserblock(512);
+        FileCreatPropList fileProp;
+        fileProp.setUserblock(512);
 
-    DSetCreatPropList cparms;
-    hsize_t chunk_dims[1]{ 96 };
-    cparms.setChunk(1, chunk_dims);
+        DSetCreatPropList cparms;
+        hsize_t chunk_dims[1]{ 96 };
+        cparms.setChunk(1, chunk_dims);
 
-    char fill_val = '0';
-    cparms.setFillValue(PredType::NATIVE_CHAR, &fill_val);
+        char fill_val = '0';
+        cparms.setFillValue(PredType::NATIVE_CHAR, &fill_val);
 
-    H5File file(name, H5F_ACC_TRUNC, fileProp);
-    DataSet dataset = file.createDataSet("blobs", PredType::STD_I8LE, fspace, cparms);
+        H5File file(name, H5F_ACC_TRUNC, fileProp);
+        DataSet dataset = file.createDataSet("blobs", PredType::STD_I8LE, fspace, cparms);
 
-    hsize_t size[1]{ 96 };
-    dataset.extend(size);
+        Writer writer(dataset);
+        write_chunks(blob_size, bind(&Writer::write, &writer, _1));
 
-    hsize_t offset[1]{ 0 };
-    hsize_t dims[1]{ 96 };
-    fspace = dataset.getSpace();
-    fspace.selectHyperslab(H5S_SELECT_SET, dims, offset);
-    dataset.write(chunk1.data(), PredType::NATIVE_CHAR, H5::DataSpace::ALL, fspace);
+        file.close();
 
-    size[0] += 60;
-    dataset.extend(size);
+        auto myfile = ofstream(name, ios::binary | ios::in | ios::out);
+        myfile.write((char*)&header, sizeof(header));
+        myfile.close();
 
-    offset[0] = 96;
-    dims[0] = 60;
-    fspace = dataset.getSpace();
-    fspace.selectHyperslab(H5S_SELECT_SET, dims, offset);
-    DataSpace mspace2(1, dims);
-    dataset.write(chunk2.data(), PredType::NATIVE_CHAR, mspace2, fspace);
-    //fspace.selectNone();
-
-    file.close();
-
-    auto myfile = ofstream(name, ios::binary | ios::in | ios::out);
-    myfile.write((char*)&header, sizeof(header));
-    myfile.close();
-
-    return 0.0;
+        timer.stop();
+    }
+    return timer.elapsedSeconds();
 }
 
 void emptyWorkingSet()
@@ -567,7 +574,7 @@ int main(int argc, char* argv[])
     os << "10\t c_style_io_read_seq\n";
     os << "11\t hdf5_write\n";
     os << "12\t hdf5_read\n";
-    os << "13\t hdf5_read_seq\n";
+    os << "13\t hdf5_write_seq\n";
 
     args::ArgumentParser parser("This is a io performance test program.", os.str());
     args::HelpFlag help(parser, "help", "Display this help menu", { 'h', "help" });
@@ -707,7 +714,7 @@ int main(int argc, char* argv[])
     if (t.empty() || find(t.begin(), t.end(), 13) != t.end())
     {
         cout << "Running hdf5_write_seq ..." << endl;
-        secs = hdf5_write_seq(blob, nbr_of_blobs, "D:/disk-test/hdf5_write_seq");
+        secs = hdf5_write_seq(blob.size(), nbr_of_blobs, "D:/disk-test/hdf5_write_seq");
         print_result(secs, "hdf5_write_seq", blob.size(), nbr_of_blobs);
     }
 
