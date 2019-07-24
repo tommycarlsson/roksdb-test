@@ -20,9 +20,7 @@
 #include <rocksdb/slice.h>
 #include <rocksdb/options.h>
 #include <H5Cpp.h>
-#include <highfive/H5DataSet.hpp>
-#include <highfive/H5DataSpace.hpp>
-#include <highfive/H5File.hpp>
+#include <mio/mmap.hpp>
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <args.hxx>
@@ -32,141 +30,21 @@
 using namespace rocksdb;
 using namespace std;
 
-//std::string kDBPath = "data/rocksdb_simple_example";
 std::string kDBPath = "D:/disk-test/rocksdb_simple_example";
 
-
 auto logger = spdlog::basic_logger_st("logger", "log.txt");
+bool random = false;
 
-#ifdef ROCKSDB
-int hello_world()
-{
-    DB* db;
-    Options options;
-    // Optimize RocksDB. This is the easiest way to get RocksDB to perform well
-    options.IncreaseParallelism();
-    options.OptimizeLevelStyleCompaction();
-    // create the DB if it's not already present
-    options.create_if_missing = true;
-
-    // open DB
-    Status s = DB::Open(options, kDBPath, &db);
-    assert(s.ok());
-
-    // Put key-value
-    s = db->Put(WriteOptions(), "key1", "value");
-    assert(s.ok());
-    string value;
-    // get value
-    s = db->Get(ReadOptions(), "key1", &value);
-    assert(s.ok());
-    assert(value == "value");
-
-    // atomically apply a set of updates
-    {
-        WriteBatch batch;
-        batch.Delete("key1");
-        batch.Put("key2", value);
-        s = db->Write(WriteOptions(), &batch);
-    }
-
-    s = db->Get(ReadOptions(), "key1", &value);
-    assert(s.IsNotFound());
-
-    db->Get(ReadOptions(), "key2", &value);
-    assert(value == "value");
-
-    {
-        PinnableSlice pinnable_val;
-        db->Get(ReadOptions(), db->DefaultColumnFamily(), "key2", &pinnable_val);
-        assert(pinnable_val == "value");
-    }
-
-    {
-        string string_val;
-        // If it cannot pin the value, it copies the value to its internal buffer.
-        // The intenral buffer could be set during construction.
-        PinnableSlice pinnable_val(&string_val);
-        db->Get(ReadOptions(), db->DefaultColumnFamily(), "key2", &pinnable_val);
-        assert(pinnable_val == "value");
-        // If the value is not pinned, the internal buffer must have the value.
-        assert(pinnable_val.IsPinned() || string_val == "value");
-    }
-
-    PinnableSlice pinnable_val;
-    db->Get(ReadOptions(), db->DefaultColumnFamily(), "key1", &pinnable_val);
-    assert(s.IsNotFound());
-    // Reset PinnableSlice after each use and before each reuse
-    pinnable_val.Reset();
-    db->Get(ReadOptions(), db->DefaultColumnFamily(), "key2", &pinnable_val);
-    assert(pinnable_val == "value");
-    pinnable_val.Reset();
-    // The Slice pointed by pinnable_val is not valid after this point
-
-    delete db;
-
-    return 0;
-}
-
-int just_read()
-{
-    DB* db;
-    Options options;
-    // Optimize RocksDB. This is the easiest way to get RocksDB to perform well
-    options.IncreaseParallelism();
-    options.OptimizeLevelStyleCompaction();
-    // create the DB if it's not already present
-    options.create_if_missing = true;
-
-    // open DB
-    Status s = DB::Open(options, kDBPath, &db);
-    assert(s.ok());
-
-    // get value
-    string value;
-    s = db->Get(ReadOptions(), "key1", &value);
-    assert(s.IsNotFound());
-
-    db->Get(ReadOptions(), "key2", &value);
-    assert(value == "value");
-
-    {
-        PinnableSlice pinnable_val;
-        db->Get(ReadOptions(), db->DefaultColumnFamily(), "key2", &pinnable_val);
-        assert(pinnable_val == "value");
-    }
-
-    {
-        string string_val;
-        // If it cannot pin the value, it copies the value to its internal buffer.
-        // The intenral buffer could be set during construction.
-        PinnableSlice pinnable_val(&string_val);
-        db->Get(ReadOptions(), db->DefaultColumnFamily(), "key2", &pinnable_val);
-        assert(pinnable_val == "value");
-        // If the value is not pinned, the internal buffer must have the value.
-        assert(pinnable_val.IsPinned() || string_val == "value");
-    }
-
-    PinnableSlice pinnable_val;
-    db->Get(ReadOptions(), db->DefaultColumnFamily(), "key1", &pinnable_val);
-    assert(s.IsNotFound());
-    // Reset PinnableSlice after each use and before each reuse
-    pinnable_val.Reset();
-    db->Get(ReadOptions(), db->DefaultColumnFamily(), "key2", &pinnable_val);
-    assert(pinnable_val == "value");
-    pinnable_val.Reset();
-    // The Slice pointed by pinnable_val is not valid after this point
-
-    delete db;
-
-    return 0;
-}
-#endif
+const size_t bufsize = 1024 * 1024;
+unique_ptr<char[]> buf(new char[bufsize]);
 
 using Blob = vector<char>;
 
 void fill_blob(Blob& blob)
 {
+    if (!random)
+        return;
+
     random_device rnd;
     default_random_engine eng(rnd());
 
@@ -178,18 +56,34 @@ void fill_blob(Blob& blob)
     });
 }
 
-void write_chunks(size_t index, function<void(Blob const &)> const writer)
+void write_chunks(size_t index, Timer& timer, function<void(Blob const &)> const writer)
 {
-    static Blob const chunk1(96, '1');
-    static Blob const chunk2(90, '2');
-    static Blob const chunk3(96, '3');
-    static Blob const chunk4(60, '4');
-    static array<Blob, 4> const chunks{ chunk1, chunk2, chunk3, chunk4 };
+    static Blob chunk1(96, '1');
+    static Blob chunk2(90, '2');
+    static Blob chunk3(96, '3');
+    static Blob chunk4(60, '4');
+    static array<Blob, 4> chunks{ chunk1, chunk2, chunk3, chunk4 };
     static size_t const chunks_size(96 + 90 + 96 + 60);
-    while (index > chunks_size)
+    
+    if (random)
     {
-        for_each(chunks.begin(), chunks.end(), writer);
-        index -= chunks_size;
+        while (index > chunks_size)
+        {
+            timer.stop();
+            for_each(chunks.begin(), chunks.end(), [] (Blob& b){ fill_blob(b); });
+            timer.start();
+
+            for_each(chunks.begin(), chunks.end(), writer);
+            index -= chunks_size;
+        }
+    }
+    else
+    {
+        while (index > chunks_size)
+        {
+            for_each(chunks.begin(), chunks.end(), writer);
+            index -= chunks_size;
+        }
     }
 }
 
@@ -273,8 +167,10 @@ double file_stream_write(Blob& blob, int count, string file_name)
     for (auto i(0); i != count; ++i)
     {
         auto name = file_name + to_string(i);
+        fill_blob(blob);
         timer.start();
         auto myfile = ofstream(name, ios::binary);
+        myfile.rdbuf()->pubsetbuf(buf.get(), bufsize);
         myfile.write(blob.data(), blob.size());
         myfile.close();
         timer.stop();
@@ -314,7 +210,8 @@ double file_stream_write_seq(size_t blob_size, int count, string file_name)
         auto name = file_name + to_string(i);
         timer.start();
         auto myfile = ofstream(name, ios::binary);
-        write_chunks(blob_size, bind(&Writer::write, Writer(myfile), _1));
+        myfile.rdbuf()->pubsetbuf(buf.get(), bufsize);
+        write_chunks(blob_size, timer, bind(&Writer::write, Writer(myfile), _1));
         myfile.close();
         timer.stop();
     }
@@ -352,6 +249,7 @@ double c_style_io_write(Blob& blob, int count, string file_name)
     for (auto i(0); i != count; ++i)
     {
         auto name = file_name + to_string(i);
+        fill_blob(blob);
         timer.start();
         FILE* file = fopen(name.c_str(), "wb");
         fwrite(blob.data(), 1, blob.size(), file);
@@ -393,7 +291,7 @@ double c_style_io_write_seq(size_t blob_size, int count, string file_name)
         auto name = file_name + to_string(i);
         timer.start();
         FILE* file = fopen(name.c_str(), "wb");
-        write_chunks(blob_size, bind(&Writer::write, Writer(file), _1));
+        write_chunks(blob_size, timer, bind(&Writer::write, Writer(file), _1));
         fclose(file);
         timer.stop();
     }
@@ -443,7 +341,7 @@ double hdf5_write(Blob& blob, int count, string file_name)
     Timer timer;
     for (auto i(0); i != count; ++i)
     {
-        //fill_blob(blob);
+        fill_blob(blob);
         auto name = file_name + to_string(i) + ".hdf5";
         //cout << "Writing: " << name << endl;
         timer.start();
@@ -506,6 +404,7 @@ double hdf5_write_seq(size_t blob_size, int count, string file_name)
             hsize_t offset[1]{ m_cursor };
             DataSpace fspace(m_dataset.getSpace());
             fspace.selectHyperslab(H5S_SELECT_SET, dims, offset);
+            //H5Dwrite_chunk(m_dataset.getId(), H5P_DEFAULT, 0, offset, blob.size(), blob.data());
             m_dataset.write(blob.data(), PredType::NATIVE_CHAR, mspace, fspace);
             m_cursor += blob.size();
         }
@@ -533,10 +432,103 @@ double hdf5_write_seq(size_t blob_size, int count, string file_name)
         DataSet dataset = file.createDataSet("blobs", PredType::STD_I8LE, fspace, cparms);
 
         Writer writer(dataset);
-        write_chunks(blob_size, bind(&Writer::write, &writer, _1));
+        write_chunks(blob_size, timer, bind(&Writer::write, &writer, _1));
 
         file.close();
 
+        timer.stop();
+    }
+    return timer.elapsedSeconds();
+}
+
+double mio_write(Blob& blob, int count, string file_name)
+{
+    error_code error;
+    Timer timer;
+    for (auto i(0); i != count; ++i)
+    {
+        fill_blob(blob);
+        auto name = file_name + to_string(i) + ".mio";
+        timer.start();
+        auto myfile = ofstream(name, ios::binary | ios::trunc);
+        myfile.seekp(blob.size() - 1);
+        myfile.put('e');
+        myfile.close();
+        mio::mmap_sink rw_mmap = mio::make_mmap_sink(
+            name, 0, mio::map_entire_file, error);
+        if (error)
+        {
+            cout << error.message();
+            return 0.0;
+        }
+        copy(begin(blob), end(blob), begin(rw_mmap));
+        rw_mmap.sync(error);
+        if (error)
+        {
+            cout << error.message();
+            return 0.0;
+        }
+        rw_mmap.unmap();
+        timer.stop();        
+    }
+    return timer.elapsedSeconds();
+}
+
+double mio_read(Blob& blob, int count, string file_name)
+{
+    error_code error;
+    Timer timer;
+    for (auto i(0); i != count; ++i)
+    {
+        auto name = file_name + to_string(i) + ".mio";
+        timer.start();
+        mio::mmap_source ro_mmap;
+        ro_mmap.map(name, error);
+        if (error)
+        {
+            cout << error.message();
+            return 0.0;
+        }
+        copy(begin(ro_mmap), end(ro_mmap), begin(blob));
+        timer.stop();
+    }
+    return timer.elapsedSeconds();
+}
+
+double mio_read_seq(size_t blob_size, int count, string file_name)
+{
+    using namespace mio;
+
+    struct Reader
+    {
+        Reader(mmap_source& ro_mmap) : m_ro_mmap(ro_mmap) {}
+        void read(Blob& blob) const
+        {
+            memcpy(blob.data(), &m_ro_mmap[index], blob.size());
+            index += blob.size();
+        }
+        mmap_source& m_ro_mmap;
+        mutable size_t index{ 0 };
+    };
+
+    using std::placeholders::_1;
+
+    error_code error;
+    Timer timer;
+    for (auto i(0); i != count; ++i)
+    {
+        auto name = file_name + to_string(i) + ".mio";
+        timer.start();
+        mmap_source ro_mmap;
+        ro_mmap.map(name, error);
+        if (error)
+        {
+            cout << error.message();
+            return 0.0;
+        }
+        Reader reader(ro_mmap);
+        mmap_source::const_iterator iter(ro_mmap.begin());
+        read_chunks(blob_size, bind(&Reader::read, &reader, _1));
         timer.stop();
     }
     return timer.elapsedSeconds();
@@ -578,12 +570,16 @@ int main(int argc, char* argv[])
     os << "11\t hdf5_write\n";
     os << "12\t hdf5_read\n";
     os << "13\t hdf5_write_seq\n";
+    os << "14\t mio_write\n";
+    os << "15\t mio_read\n";
+    os << "16\t mio_read_seq\n";
 
     args::ArgumentParser parser("This is a io performance test program.", os.str());
     args::HelpFlag help(parser, "help", "Display this help menu", { 'h', "help" });
     args::CompletionFlag completion(parser, { "complete" });
     args::ValueFlag<int> nbrOfBlobs(parser, "nbrOfBlobs", "Number of blobs", { 'n' }, 100);
     args::ValueFlag<int> blobSize(parser, "blobSize", "Size of a blob [MB]", { 's' }, 1048576 * 15);
+    args::Flag randomFlag(parser, "random", "Fill blob with random values and unique file names", { 'r' }, false);
     args::PositionalList<int> tests(parser, "tests", "Tests to run");
 
     try
@@ -607,18 +603,19 @@ int main(int argc, char* argv[])
         return 1;
     }
 
+    random = randomFlag.Get();
+
     auto t = args::get(tests);
+    int const nbr_of_blobs = args::get(nbrOfBlobs);
+    int const blob_size = args::get(blobSize);
 
-    //hello_world();
-    //just_read();
-
-    int const nbr_of_blobs = nbrOfBlobs.Get();
-    int const blob_size = blobSize.Get();
-
-    spdlog::info("===== Start test with a blob of size {} bytes and with {} nbr of blobs ============",
-        blob_size, nbr_of_blobs);
+    spdlog::info("===== Start test with a rnd ({}) blob of size {} bytes and with {} nbr of blobs ============",
+        random, blob_size, nbr_of_blobs);
 
     Blob blob(blob_size, '1');
+
+    srand(time(0));
+    auto extension = random ? "_" + std::to_string(rand()) + "-" : "";
 
     Timer timer;
     timer.start();
@@ -637,14 +634,14 @@ int main(int argc, char* argv[])
     if (t.empty() || find(t.begin(), t.end(), 2) != t.end())
     {
         cout << "Running file_stream_write ..." << endl;
-        secs = file_stream_write(blob, nbr_of_blobs, "D:/disk-test/file_stream_write");
+        secs = file_stream_write(blob, nbr_of_blobs, "D:/disk-test/file_stream_write" + extension);
         print_result(secs, "file_stream_write", blob.size(), nbr_of_blobs);
     }
 
     if (t.empty() || find(t.begin(), t.end(), 3) != t.end())
     {
         cout << "Running c_style_io_write ..." << endl;
-        secs = c_style_io_write(blob, nbr_of_blobs, "D:/disk-test/c_style_io_write");
+        secs = c_style_io_write(blob, nbr_of_blobs, "D:/disk-test/c_style_io_write" + extension);
         print_result(secs, "c_style_io_write", blob.size(), nbr_of_blobs);
     }
     
@@ -660,65 +657,85 @@ int main(int argc, char* argv[])
     if (t.empty() || find(t.begin(), t.end(), 5) != t.end())
     {
         cout << "Running file_stream_read ..." << endl;
-        secs = file_stream_read(blob, nbr_of_blobs, "D:/disk-test/file_stream_write");
+        secs = file_stream_read(blob, nbr_of_blobs, "D:/disk-test/file_stream_write" + extension);
         print_result(secs, "file_stream_read", blob.size(), nbr_of_blobs);
     }
 
     if (t.empty() || find(t.begin(), t.end(), 6) != t.end())
     {
         cout << "Running c_style_io_read ..." << endl;
-        secs = c_style_io_read(blob, nbr_of_blobs, "D:/disk-test/c_style_io_write");
+        secs = c_style_io_read(blob, nbr_of_blobs, "D:/disk-test/c_style_io_write" + extension);
         print_result(secs, "c_style_io_read", blob.size(), nbr_of_blobs);
     }
 
     if (t.empty() || find(t.begin(), t.end(), 7) != t.end())
     {
         cout << "Running file_stream_write_seq ..." << endl;
-        secs = file_stream_write_seq(blob.size(), nbr_of_blobs, "D:/disk-test/file_stream_write_seq");
+        secs = file_stream_write_seq(blob.size(), nbr_of_blobs, "D:/disk-test/file_stream_write_seq" + extension);
         print_result(secs, "file_stream_write_seq", blob.size(), nbr_of_blobs);
     }
 
     if (t.empty() || find(t.begin(), t.end(), 8) != t.end())
     {
         cout << "Running c_style_io_write_seq ..." << endl;
-        secs = c_style_io_write_seq(blob.size(), nbr_of_blobs, "D:/disk-test/c_style_io_write_seq");
+        secs = c_style_io_write_seq(blob.size(), nbr_of_blobs, "D:/disk-test/c_style_io_write_seq" + extension);
         print_result(secs, "c_style_io_write_seq", blob.size(), nbr_of_blobs);
     }
 
     if (t.empty() || find(t.begin(), t.end(), 9) != t.end())
     {
         cout << "Running file_stream_read_seq ..." << endl;
-        secs = file_stream_read_seq(blob.size(), nbr_of_blobs, "D:/disk-test/file_stream_write_seq");
+        secs = file_stream_read_seq(blob.size(), nbr_of_blobs, "D:/disk-test/file_stream_write_seq" + extension);
         print_result(secs, "file_stream_read_seq", blob.size(), nbr_of_blobs);
     }
 
     if (t.empty() || find(t.begin(), t.end(), 10) != t.end())
     {
         cout << "Running c_style_io_read_seq ..." << endl;
-        secs = c_style_io_read_seq(blob.size(), nbr_of_blobs, "D:/disk-test/c_style_io_write_seq");
+        secs = c_style_io_read_seq(blob.size(), nbr_of_blobs, "D:/disk-test/c_style_io_write_seq" + extension);
         print_result(secs, "c_style_io_read_seq", blob.size(), nbr_of_blobs);
     }
 
     if (t.empty() || find(t.begin(), t.end(), 11) != t.end())
     {
         cout << "Running hdf5_write ..." << endl;
-        secs = hdf5_write(blob, nbr_of_blobs, "D:/disk-test/hdf5_write");
+        secs = hdf5_write(blob, nbr_of_blobs, "D:/disk-test/hdf5_write" + extension);
         print_result(secs, "hdf5_write", blob.size(), nbr_of_blobs);
     }
 
     if (t.empty() || find(t.begin(), t.end(), 12) != t.end())
     {
-        emptyWorkingSet();
         cout << "Running hdf5_read ..." << endl;
-        secs = hdf5_read(blob, nbr_of_blobs, "D:/disk-test/hdf5_write");
+        secs = hdf5_read(blob, nbr_of_blobs, "D:/disk-test/hdf5_write" + extension);
         print_result(secs, "hdf5_read", blob.size(), nbr_of_blobs);
     }
 
     if (t.empty() || find(t.begin(), t.end(), 13) != t.end())
     {
         cout << "Running hdf5_write_seq ..." << endl;
-        secs = hdf5_write_seq(blob.size(), nbr_of_blobs, "D:/disk-test/hdf5_write_seq");
+        secs = hdf5_write_seq(blob.size(), nbr_of_blobs, "D:/disk-test/hdf5_write_seq" + extension);
         print_result(secs, "hdf5_write_seq", blob.size(), nbr_of_blobs);
+    }
+
+    if (t.empty() || find(t.begin(), t.end(), 14) != t.end())
+    {
+        cout << "Running mio_write ..." << endl;
+        secs = mio_write(blob, nbr_of_blobs, "D:/disk-test/mio_write" + extension);
+        print_result(secs, "mio_write", blob.size(), nbr_of_blobs);
+    }
+
+    if (t.empty() || find(t.begin(), t.end(), 15) != t.end())
+    {
+        cout << "Running mio_read ..." << endl;
+        secs = mio_read(blob, nbr_of_blobs, "D:/disk-test/mio_write" + extension);
+        print_result(secs, "mio_read", blob.size(), nbr_of_blobs);
+    }
+
+    if (t.empty() || find(t.begin(), t.end(), 16) != t.end())
+    {
+        cout << "Running mio_read_seq ..." << endl;
+        secs = mio_read_seq(blob.size(), nbr_of_blobs, "D:/disk-test/mio_write" + extension);
+        print_result(secs, "mio_read_seq", blob.size(), nbr_of_blobs);
     }
 
     timer.stop();
