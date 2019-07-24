@@ -30,8 +30,6 @@
 using namespace rocksdb;
 using namespace std;
 
-std::string kDBPath = "D:/disk-test/rocksdb_simple_example";
-
 auto logger = spdlog::basic_logger_st("logger", "log.txt");
 bool random = false;
 
@@ -102,7 +100,6 @@ void read_chunks(size_t index, function<void(Blob&)> const reader)
     }
 }
 
-#ifdef ROCKSDB
 double write_rocks(Blob& blob, int count, string file_name)
 {
     DB* db;
@@ -159,7 +156,6 @@ double read_rocks(Blob& blob, int count, string file_name)
 
     return timer.elapsedSeconds();
 }
-#endif // ROCKSDB
 
 double file_stream_write(Blob& blob, int count, string file_name)
 {
@@ -469,7 +465,8 @@ double mio_write(Blob& blob, int count, string file_name)
             return 0.0;
         }
         rw_mmap.unmap();
-        timer.stop();        
+        timer.stop();
+        cout << "Wrote: " << name << endl;
     }
     return timer.elapsedSeconds();
 }
@@ -481,6 +478,7 @@ double mio_read(Blob& blob, int count, string file_name)
     for (auto i(0); i != count; ++i)
     {
         auto name = file_name + to_string(i) + ".mio";
+        cout << "Reading: " << name << endl;
         timer.start();
         mio::mmap_source ro_mmap;
         ro_mmap.map(name, error);
@@ -518,6 +516,7 @@ double mio_read_seq(size_t blob_size, int count, string file_name)
     for (auto i(0); i != count; ++i)
     {
         auto name = file_name + to_string(i) + ".mio";
+        cout << "Reading: " << name << endl;
         timer.start();
         mmap_source ro_mmap;
         ro_mmap.map(name, error);
@@ -579,6 +578,7 @@ int main(int argc, char* argv[])
     args::CompletionFlag completion(parser, { "complete" });
     args::ValueFlag<int> nbrOfBlobs(parser, "nbrOfBlobs", "Number of blobs", { 'n' }, 100);
     args::ValueFlag<int> blobSize(parser, "blobSize", "Size of a blob [MB]", { 's' }, 1048576 * 15);
+    args::ValueFlag<std::string> dir(parser, "dir", "Output directory", { 'd', "dir" }, "D:/disk-test");
     args::Flag randomFlag(parser, "random", "Fill blob with random values and unique file names", { 'r' }, false);
     args::PositionalList<int> tests(parser, "tests", "Tests to run");
 
@@ -622,119 +622,117 @@ int main(int argc, char* argv[])
 
     double secs(0);
 
-#ifdef ROCKSDB
+    auto path(args::get(dir));
+
     if (t.empty() || find(t.begin(), t.end(), 1) != t.end())
     {
         cout << "Running write_rocks ..." << endl;
-        secs = write_rocks(blob, nbr_of_blobs, "D:/disk-test/rocksdb");
+        secs = write_rocks(blob, nbr_of_blobs, path + "/rocksdb");
         print_result(secs, "write_rocks", blob.size(), nbr_of_blobs);
     }
-#endif // ROCKSDB
 
     if (t.empty() || find(t.begin(), t.end(), 2) != t.end())
     {
         cout << "Running file_stream_write ..." << endl;
-        secs = file_stream_write(blob, nbr_of_blobs, "D:/disk-test/file_stream_write" + extension);
+        secs = file_stream_write(blob, nbr_of_blobs, path + "/file_stream_write" + extension);
         print_result(secs, "file_stream_write", blob.size(), nbr_of_blobs);
     }
 
     if (t.empty() || find(t.begin(), t.end(), 3) != t.end())
     {
         cout << "Running c_style_io_write ..." << endl;
-        secs = c_style_io_write(blob, nbr_of_blobs, "D:/disk-test/c_style_io_write" + extension);
+        secs = c_style_io_write(blob, nbr_of_blobs, path + "/c_style_io_write" + extension);
         print_result(secs, "c_style_io_write", blob.size(), nbr_of_blobs);
     }
     
-#ifdef ROCKSDB
     if (t.empty() || find(t.begin(), t.end(), 4) != t.end())
     {
         cout << "Running read_rocks ..." << endl;
-        secs = read_rocks(blob, nbr_of_blobs, "D:/disk-test/rocksdb");
+        secs = read_rocks(blob, nbr_of_blobs, path + "/rocksdb");
         print_result(secs, "read_rocks", blob.size(), nbr_of_blobs);
     }
-#endif // ROCKSDB
 
     if (t.empty() || find(t.begin(), t.end(), 5) != t.end())
     {
         cout << "Running file_stream_read ..." << endl;
-        secs = file_stream_read(blob, nbr_of_blobs, "D:/disk-test/file_stream_write" + extension);
+        secs = file_stream_read(blob, nbr_of_blobs, path + "/file_stream_write" + extension);
         print_result(secs, "file_stream_read", blob.size(), nbr_of_blobs);
     }
 
     if (t.empty() || find(t.begin(), t.end(), 6) != t.end())
     {
         cout << "Running c_style_io_read ..." << endl;
-        secs = c_style_io_read(blob, nbr_of_blobs, "D:/disk-test/c_style_io_write" + extension);
+        secs = c_style_io_read(blob, nbr_of_blobs, path + "/c_style_io_write" + extension);
         print_result(secs, "c_style_io_read", blob.size(), nbr_of_blobs);
     }
 
     if (t.empty() || find(t.begin(), t.end(), 7) != t.end())
     {
         cout << "Running file_stream_write_seq ..." << endl;
-        secs = file_stream_write_seq(blob.size(), nbr_of_blobs, "D:/disk-test/file_stream_write_seq" + extension);
+        secs = file_stream_write_seq(blob.size(), nbr_of_blobs, path + "/file_stream_write_seq" + extension);
         print_result(secs, "file_stream_write_seq", blob.size(), nbr_of_blobs);
     }
 
     if (t.empty() || find(t.begin(), t.end(), 8) != t.end())
     {
         cout << "Running c_style_io_write_seq ..." << endl;
-        secs = c_style_io_write_seq(blob.size(), nbr_of_blobs, "D:/disk-test/c_style_io_write_seq" + extension);
+        secs = c_style_io_write_seq(blob.size(), nbr_of_blobs, path + "/c_style_io_write_seq" + extension);
         print_result(secs, "c_style_io_write_seq", blob.size(), nbr_of_blobs);
     }
 
     if (t.empty() || find(t.begin(), t.end(), 9) != t.end())
     {
         cout << "Running file_stream_read_seq ..." << endl;
-        secs = file_stream_read_seq(blob.size(), nbr_of_blobs, "D:/disk-test/file_stream_write_seq" + extension);
+        secs = file_stream_read_seq(blob.size(), nbr_of_blobs, path + "/file_stream_write_seq" + extension);
         print_result(secs, "file_stream_read_seq", blob.size(), nbr_of_blobs);
     }
 
     if (t.empty() || find(t.begin(), t.end(), 10) != t.end())
     {
         cout << "Running c_style_io_read_seq ..." << endl;
-        secs = c_style_io_read_seq(blob.size(), nbr_of_blobs, "D:/disk-test/c_style_io_write_seq" + extension);
+        secs = c_style_io_read_seq(blob.size(), nbr_of_blobs, path + "/c_style_io_write_seq" + extension);
         print_result(secs, "c_style_io_read_seq", blob.size(), nbr_of_blobs);
     }
 
     if (t.empty() || find(t.begin(), t.end(), 11) != t.end())
     {
         cout << "Running hdf5_write ..." << endl;
-        secs = hdf5_write(blob, nbr_of_blobs, "D:/disk-test/hdf5_write" + extension);
+        secs = hdf5_write(blob, nbr_of_blobs, path + "/hdf5_write" + extension);
         print_result(secs, "hdf5_write", blob.size(), nbr_of_blobs);
     }
 
     if (t.empty() || find(t.begin(), t.end(), 12) != t.end())
     {
         cout << "Running hdf5_read ..." << endl;
-        secs = hdf5_read(blob, nbr_of_blobs, "D:/disk-test/hdf5_write" + extension);
+        secs = hdf5_read(blob, nbr_of_blobs, path + "/hdf5_write" + extension);
         print_result(secs, "hdf5_read", blob.size(), nbr_of_blobs);
     }
 
     if (t.empty() || find(t.begin(), t.end(), 13) != t.end())
     {
         cout << "Running hdf5_write_seq ..." << endl;
-        secs = hdf5_write_seq(blob.size(), nbr_of_blobs, "D:/disk-test/hdf5_write_seq" + extension);
+        secs = hdf5_write_seq(blob.size(), nbr_of_blobs, path + "/hdf5_write_seq" + extension);
         print_result(secs, "hdf5_write_seq", blob.size(), nbr_of_blobs);
     }
 
     if (t.empty() || find(t.begin(), t.end(), 14) != t.end())
     {
         cout << "Running mio_write ..." << endl;
-        secs = mio_write(blob, nbr_of_blobs, "D:/disk-test/mio_write" + extension);
+        secs = mio_write(blob, nbr_of_blobs, path + "/mio_write" + extension);
         print_result(secs, "mio_write", blob.size(), nbr_of_blobs);
     }
 
     if (t.empty() || find(t.begin(), t.end(), 15) != t.end())
     {
         cout << "Running mio_read ..." << endl;
-        secs = mio_read(blob, nbr_of_blobs, "D:/disk-test/mio_write" + extension);
+        secs = mio_read(blob, nbr_of_blobs, path + "/mio_write" + extension);
         print_result(secs, "mio_read", blob.size(), nbr_of_blobs);
     }
 
     if (t.empty() || find(t.begin(), t.end(), 16) != t.end())
     {
         cout << "Running mio_read_seq ..." << endl;
-        secs = mio_read_seq(blob.size(), nbr_of_blobs, "D:/disk-test/mio_write" + extension);
+        secs = mio_read_seq(blob.size(), nbr_of_blobs, path + "/mio_write" + extension);
         print_result(secs, "mio_read_seq", blob.size(), nbr_of_blobs);
     }
 
