@@ -21,11 +21,13 @@
 #include <rocksdb/options.h>
 #include <H5Cpp.h>
 #include <mio/mmap.hpp>
+#include <cereal/archives/binary.hpp>
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <args.hxx>
 
 #include "timer.h"
+#include "fake.h"
 
 using namespace rocksdb;
 using namespace std;
@@ -123,7 +125,9 @@ double write_rocks(Blob& blob, int count, string file_name)
         s = db->Put(WriteOptions(), to_string(i), Slice(blob.data(), blob.size()));
         timer.stop();
         //fill_blob(blob);
+        cout << '#';
     }
+    cout << endl;
 
     delete db;
 
@@ -150,10 +154,12 @@ double read_rocks(Blob& blob, int count, string file_name)
         timer.start();
         s = db->Get(ReadOptions(), db->DefaultColumnFamily(), to_string(i), &pinnable_val);
         timer.stop();
+        cout << '#';
     }
+    cout << endl;
 
     delete db;
-
+    
     return timer.elapsedSeconds();
 }
 
@@ -170,7 +176,9 @@ double file_stream_write(Blob& blob, int count, string file_name)
         myfile.write(blob.data(), blob.size());
         myfile.close();
         timer.stop();
+        cout << '#';
     }
+    cout << endl;
     return timer.elapsedSeconds();
 }
 
@@ -185,7 +193,9 @@ double file_stream_read(Blob& blob, int count, string file_name)
         myfile.read(blob.data(), blob.size());
         myfile.close();
         timer.stop();
+        cout << '#';
     }
+    cout << endl;
     return timer.elapsedSeconds();
 }
 
@@ -210,7 +220,9 @@ double file_stream_write_seq(size_t blob_size, int count, string file_name)
         write_chunks(blob_size, timer, bind(&Writer::write, Writer(myfile), _1));
         myfile.close();
         timer.stop();
+        cout << '#';
     }
+    cout << endl;
     return timer.elapsedSeconds();
 }
 
@@ -234,7 +246,9 @@ double file_stream_read_seq(size_t blob_size, int count, string file_name)
         read_chunks(blob_size, bind(&Reader::read, Reader(myfile), _1));
         myfile.close();
         timer.stop();
+        cout << '#';
     }
+    cout << endl;
     return timer.elapsedSeconds();
 }
 
@@ -251,7 +265,9 @@ double c_style_io_write(Blob& blob, int count, string file_name)
         fwrite(blob.data(), 1, blob.size(), file);
         fclose(file);
         timer.stop();
+        cout << '#';
     }
+    cout << endl;
     return timer.elapsedSeconds();
 }
 
@@ -266,7 +282,9 @@ double c_style_io_read(Blob& blob, int count, string file_name)
         fread(blob.data(), 1, blob.size(), file);
         fclose(file);
         timer.stop();
+        cout << '#';
     }
+    cout << endl;
     return timer.elapsedSeconds();
 }
 
@@ -290,7 +308,9 @@ double c_style_io_write_seq(size_t blob_size, int count, string file_name)
         write_chunks(blob_size, timer, bind(&Writer::write, Writer(file), _1));
         fclose(file);
         timer.stop();
+        cout << '#';
     }
+    cout << endl;
     return timer.elapsedSeconds();
 }
 
@@ -314,7 +334,9 @@ double c_style_io_read_seq(size_t blob_size, int count, string file_name)
         read_chunks(blob_size, bind(&Reader::read, Reader(file), _1));
         fclose(file);
         timer.stop();
+        cout << '#';
     }
+    cout << endl;
     return timer.elapsedSeconds();
 }
 
@@ -354,7 +376,9 @@ double hdf5_write(Blob& blob, int count, string file_name)
         myfile.close();
 
         timer.stop();
+        cout << '#';
     }
+    cout << endl;
     return timer.elapsedSeconds();
 }
 
@@ -376,7 +400,9 @@ double hdf5_read(Blob& blob, int count, string file_name)
         DataSet dataset = file.openDataSet("blob");
         dataset.read(blob.data(), PredType::NATIVE_CHAR);
         timer.stop();
+        cout << '#';
     }
+    cout << endl;
     return timer.elapsedSeconds();
 }
 
@@ -433,7 +459,9 @@ double hdf5_write_seq(size_t blob_size, int count, string file_name)
         file.close();
 
         timer.stop();
+        cout << '#';
     }
+    cout << endl;
     return timer.elapsedSeconds();
 }
 
@@ -466,8 +494,9 @@ double mio_write(Blob& blob, int count, string file_name)
         }
         rw_mmap.unmap();
         timer.stop();
-        cout << "Wrote: " << name << endl;
+        cout << '#';
     }
+    cout << endl;
     return timer.elapsedSeconds();
 }
 
@@ -478,7 +507,7 @@ double mio_read(Blob& blob, int count, string file_name)
     for (auto i(0); i != count; ++i)
     {
         auto name = file_name + to_string(i) + ".mio";
-        cout << "Reading: " << name << endl;
+        //cout << "Reading: " << name << endl;
         timer.start();
         mio::mmap_source ro_mmap;
         ro_mmap.map(name, error);
@@ -489,7 +518,65 @@ double mio_read(Blob& blob, int count, string file_name)
         }
         copy(begin(ro_mmap), end(ro_mmap), begin(blob));
         timer.stop();
+        cout << '#';
     }
+    cout << endl;
+    return timer.elapsedSeconds();
+}
+
+double mio_write_seq(size_t blob_size, int count, string file_name)
+{
+    using namespace mio;
+    using std::placeholders::_1;
+
+    struct Writer
+    {
+        Writer(mmap_sink& rw_mmap) : m_rw_mmap(rw_mmap) {}
+        void write(Blob const& blob)
+        {
+            error_code error;
+            memcpy(&m_rw_mmap[m_cursor], blob.data(), blob.size());
+            if (error) 
+            {
+                spdlog::error("Fail to sync in mio");
+                return;
+            }
+            m_cursor += blob.size();
+        }
+        mmap_sink& m_rw_mmap;
+        size_t m_cursor{ 0 };
+    };
+
+    error_code error;
+    Timer timer;
+    for (auto i(0); i != count; ++i)
+    {
+        auto name = file_name + to_string(i) + ".mio";
+        timer.start();
+        auto myfile = ofstream(name, ios::binary | ios::trunc);
+        myfile.seekp(blob_size - 1);
+        myfile.put('e');
+        myfile.close();
+        mio::mmap_sink rw_mmap = mio::make_mmap_sink(
+            name, 0, mio::map_entire_file, error);
+        if (error)
+        {
+            cout << error.message();
+            return 0.0;
+        }
+        Writer writer(rw_mmap);
+        write_chunks(blob_size, timer, bind(&Writer::write, &writer, _1));
+        rw_mmap.sync(error);
+        if (error)
+        {
+            cout << error.message();
+            return 0.0;
+        }
+        rw_mmap.unmap();
+        timer.stop();
+        cout << '#';
+    }
+    cout << endl;
     return timer.elapsedSeconds();
 }
 
@@ -516,7 +603,6 @@ double mio_read_seq(size_t blob_size, int count, string file_name)
     for (auto i(0); i != count; ++i)
     {
         auto name = file_name + to_string(i) + ".mio";
-        cout << "Reading: " << name << endl;
         timer.start();
         mmap_source ro_mmap;
         ro_mmap.map(name, error);
@@ -529,7 +615,72 @@ double mio_read_seq(size_t blob_size, int count, string file_name)
         mmap_source::const_iterator iter(ro_mmap.begin());
         read_chunks(blob_size, bind(&Reader::read, &reader, _1));
         timer.stop();
+        cout << '#';
     }
+    cout << endl;
+    return timer.elapsedSeconds();
+}
+
+double cereal_write_seq(size_t blob_size, int count, string file_name)
+{
+    using namespace cereal;
+    using std::placeholders::_1;
+
+    struct Writer
+    {
+        Writer(BinaryOutputArchive& oarchive, Fake& fake) : m_oarchive(oarchive), m_fake(fake) {}
+        void write(Blob const& blob) const { m_oarchive(m_fake); }
+        BinaryOutputArchive& m_oarchive;
+        Fake& m_fake;
+    };
+
+    Fake fake;
+
+    Timer timer;
+    for (auto i(0); i != count; ++i)
+    {
+        auto name = file_name + to_string(i);
+        timer.start();
+        auto myfile = ofstream(name, ios::binary | ios::trunc);
+        myfile.rdbuf()->pubsetbuf(buf.get(), bufsize);
+        BinaryOutputArchive oarchive(myfile);
+        write_chunks(blob_size, timer, bind(&Writer::write, Writer(oarchive, fake), _1));
+        myfile.close();
+        timer.stop();
+        cout << '#';
+    }
+    cout << endl;
+    return timer.elapsedSeconds();
+}
+
+double cereal_read_seq(size_t blob_size, int count, string file_name)
+{
+    using namespace cereal;
+    using std::placeholders::_1;
+
+    struct Reader
+    {
+        Reader(BinaryInputArchive& iarchive, Fake& fake) : m_iarchive(iarchive), m_fake(fake) {}
+        void read(Blob& blob) const { m_iarchive(m_fake); }
+        BinaryInputArchive& m_iarchive;
+        Fake& m_fake;
+    };
+
+    Fake fake;
+
+    Timer timer;
+    for (auto i(0); i != count; ++i)
+    {
+        auto name = file_name + to_string(i);
+        timer.start();
+        auto myfile = ifstream(name, ios::binary);
+        BinaryInputArchive iarchive(myfile);
+        read_chunks(blob_size, bind(&Reader::read, Reader(iarchive, fake), _1));
+        myfile.close();
+        timer.stop();
+        cout << '#';
+    }
+    cout << endl;
     return timer.elapsedSeconds();
 }
 
@@ -571,7 +722,10 @@ int main(int argc, char* argv[])
     os << "13\t hdf5_write_seq\n";
     os << "14\t mio_write\n";
     os << "15\t mio_read\n";
-    os << "16\t mio_read_seq\n";
+    os << "16\t mio_write_seq\n";
+    os << "17\t mio_read_seq\n";
+    os << "18\t cereal_write_seq\n";
+    os << "19\t cereal_read_seq\n";
 
     args::ArgumentParser parser("This is a io performance test program.", os.str());
     args::HelpFlag help(parser, "help", "Display this help menu", { 'h', "help" });
@@ -581,6 +735,13 @@ int main(int argc, char* argv[])
     args::ValueFlag<std::string> dir(parser, "dir", "Output directory", { 'd', "dir" }, "D:/disk-test");
     args::Flag randomFlag(parser, "random", "Fill blob with random values and unique file names", { 'r' }, false);
     args::PositionalList<int> tests(parser, "tests", "Tests to run");
+
+    ostringstream cmdLine;
+    cmdLine << "Args: ";
+    for (auto i(1); i != argc; ++i)
+    {
+        cmdLine << string(argv[i]) + " ";
+    }
 
     try
     {
@@ -611,6 +772,7 @@ int main(int argc, char* argv[])
 
     spdlog::info("===== Start test with a rnd ({}) blob of size {} bytes and with {} nbr of blobs ============",
         random, blob_size, nbr_of_blobs);
+    spdlog::info(cmdLine.str());
 
     Blob blob(blob_size, '1');
 
@@ -731,12 +893,35 @@ int main(int argc, char* argv[])
 
     if (t.empty() || find(t.begin(), t.end(), 16) != t.end())
     {
+        cout << "Running mio_write_seq ..." << endl;
+        secs = mio_write_seq(blob.size(), nbr_of_blobs, path + "/mio_write_seq" + extension);
+        print_result(secs, "mio_write_seq", blob.size(), nbr_of_blobs);
+    }
+
+    if (t.empty() || find(t.begin(), t.end(), 17) != t.end())
+    {
         cout << "Running mio_read_seq ..." << endl;
-        secs = mio_read_seq(blob.size(), nbr_of_blobs, path + "/mio_write" + extension);
+        secs = mio_read_seq(blob.size(), nbr_of_blobs, path + "/mio_write_seq" + extension);
         print_result(secs, "mio_read_seq", blob.size(), nbr_of_blobs);
     }
 
+    if (t.empty() || find(t.begin(), t.end(), 18) != t.end())
+    {
+        cout << "Running cereal_write_seq ..." << endl;
+        secs = cereal_write_seq(blob.size(), nbr_of_blobs, path + "/cereal_write_seq" + extension);
+        print_result(secs, "cereal_write_seq", blob.size(), nbr_of_blobs);
+    }
+
+    if (t.empty() || find(t.begin(), t.end(), 19) != t.end())
+    {
+        cout << "Running cereal_read_seq ..." << endl;
+        secs = cereal_read_seq(blob.size(), nbr_of_blobs, path + "/cereal_write_seq" + extension);
+        print_result(secs, "cereal_read_seq", blob.size(), nbr_of_blobs);
+    }
+
     timer.stop();
+    cout << endl;
+
     spdlog::info("Total time: {}s", timer.elapsedSeconds());
 
     return 0;
