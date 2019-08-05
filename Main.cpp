@@ -121,10 +121,10 @@ double write_rocks(Blob& blob, int count, string file_name)
     // Put key-value one by one
     for (auto i(0); i != count; ++i)
     {
+        fill_blob(blob);
         timer.start();
         s = db->Put(WriteOptions(), to_string(i), Slice(blob.data(), blob.size()));
         timer.stop();
-        //fill_blob(blob);
         cout << '#';
     }
     cout << endl;
@@ -163,7 +163,7 @@ double read_rocks(Blob& blob, int count, string file_name)
     return timer.elapsedSeconds();
 }
 
-double file_stream_write(Blob& blob, int count, string file_name)
+double write_file_stream(Blob& blob, int count, string file_name)
 {
     Timer timer;
     for (auto i(0); i != count; ++i)
@@ -182,7 +182,7 @@ double file_stream_write(Blob& blob, int count, string file_name)
     return timer.elapsedSeconds();
 }
 
-double file_stream_read(Blob& blob, int count, string file_name)
+double read_file_stream(Blob& blob, int count, string file_name)
 {
     Timer timer;
     for (auto i(0); i != count; ++i)
@@ -199,7 +199,7 @@ double file_stream_read(Blob& blob, int count, string file_name)
     return timer.elapsedSeconds();
 }
 
-double file_stream_write_seq(size_t blob_size, int count, string file_name)
+double seq_write_file_stream(size_t blob_size, int count, string file_name)
 {
     struct Writer
     {
@@ -226,7 +226,7 @@ double file_stream_write_seq(size_t blob_size, int count, string file_name)
     return timer.elapsedSeconds();
 }
 
-double file_stream_read_seq(size_t blob_size, int count, string file_name)
+double seq_read_file_stream(size_t blob_size, int count, string file_name)
 {
     struct Reader
     {
@@ -253,7 +253,7 @@ double file_stream_read_seq(size_t blob_size, int count, string file_name)
 }
 
 
-double c_style_io_write(Blob& blob, int count, string file_name)
+double write_c_style_io(Blob& blob, int count, string file_name)
 {
     Timer timer;
     for (auto i(0); i != count; ++i)
@@ -271,7 +271,7 @@ double c_style_io_write(Blob& blob, int count, string file_name)
     return timer.elapsedSeconds();
 }
 
-double c_style_io_read(Blob& blob, int count, string file_name)
+double read_c_style_io(Blob& blob, int count, string file_name)
 {
     Timer timer;
     for (auto i(0); i != count; ++i)
@@ -288,7 +288,7 @@ double c_style_io_read(Blob& blob, int count, string file_name)
     return timer.elapsedSeconds();
 }
 
-double c_style_io_write_seq(size_t blob_size, int count, string file_name)
+double seq_write_c_style_io(size_t blob_size, int count, string file_name)
 {
     struct Writer
     {
@@ -314,7 +314,7 @@ double c_style_io_write_seq(size_t blob_size, int count, string file_name)
     return timer.elapsedSeconds();
 }
 
-double c_style_io_read_seq(size_t blob_size, int count, string file_name)
+double seq_read_c_style_io(size_t blob_size, int count, string file_name)
 {
     struct Reader
     {
@@ -340,7 +340,7 @@ double c_style_io_read_seq(size_t blob_size, int count, string file_name)
     return timer.elapsedSeconds();
 }
 
-double hdf5_write(Blob& blob, int count, string file_name)
+double write_hdf5(Blob& blob, int count, string file_name)
 {
     using namespace H5;
 
@@ -361,7 +361,6 @@ double hdf5_write(Blob& blob, int count, string file_name)
     {
         fill_blob(blob);
         auto name = file_name + to_string(i) + ".hdf5";
-        //cout << "Writing: " << name << endl;
         timer.start();
         FileCreatPropList fileProp;
         fileProp.setUserblock(512);
@@ -382,7 +381,7 @@ double hdf5_write(Blob& blob, int count, string file_name)
     return timer.elapsedSeconds();
 }
 
-double hdf5_read(Blob& blob, int count, string file_name)
+double read_hdf5(Blob& blob, int count, string file_name)
 {
     using namespace H5;
 
@@ -394,7 +393,6 @@ double hdf5_read(Blob& blob, int count, string file_name)
     for (auto i(0); i != count; ++i)
     {
         auto name = file_name + to_string(i) + ".hdf5";
-        //cout << "Reading: " << name << endl;
         timer.start();
         H5File file(name, H5F_ACC_RDONLY);
         DataSet dataset = file.openDataSet("blob");
@@ -406,7 +404,7 @@ double hdf5_read(Blob& blob, int count, string file_name)
     return timer.elapsedSeconds();
 }
 
-double hdf5_write_seq(size_t blob_size, int count, string file_name)
+double seq_write_hdf5(size_t blob_size, int count, string file_name)
 {
     using namespace H5;
     using std::placeholders::_1;
@@ -465,7 +463,7 @@ double hdf5_write_seq(size_t blob_size, int count, string file_name)
     return timer.elapsedSeconds();
 }
 
-double mio_write(Blob& blob, int count, string file_name)
+double write_mio(Blob& blob, int count, string file_name)
 {
     error_code error;
     Timer timer;
@@ -500,14 +498,13 @@ double mio_write(Blob& blob, int count, string file_name)
     return timer.elapsedSeconds();
 }
 
-double mio_read(Blob& blob, int count, string file_name)
+double read_mio(Blob& blob, int count, string file_name)
 {
     error_code error;
     Timer timer;
     for (auto i(0); i != count; ++i)
     {
         auto name = file_name + to_string(i) + ".mio";
-        //cout << "Reading: " << name << endl;
         timer.start();
         mio::mmap_source ro_mmap;
         ro_mmap.map(name, error);
@@ -524,7 +521,7 @@ double mio_read(Blob& blob, int count, string file_name)
     return timer.elapsedSeconds();
 }
 
-double mio_write_seq(size_t blob_size, int count, string file_name)
+double seq_write_mio(size_t blob_size, int count, string file_name)
 {
     using namespace mio;
     using std::placeholders::_1;
@@ -580,7 +577,7 @@ double mio_write_seq(size_t blob_size, int count, string file_name)
     return timer.elapsedSeconds();
 }
 
-double mio_read_seq(size_t blob_size, int count, string file_name)
+double seq_read_mio(size_t blob_size, int count, string file_name)
 {
     using namespace mio;
 
@@ -621,7 +618,7 @@ double mio_read_seq(size_t blob_size, int count, string file_name)
     return timer.elapsedSeconds();
 }
 
-double cereal_write_seq(size_t blob_size, int count, string file_name)
+double seq_write_cereal(size_t blob_size, int count, string file_name)
 {
     using namespace cereal;
     using std::placeholders::_1;
@@ -653,7 +650,7 @@ double cereal_write_seq(size_t blob_size, int count, string file_name)
     return timer.elapsedSeconds();
 }
 
-double cereal_read_seq(size_t blob_size, int count, string file_name)
+double seq_read_cereal(size_t blob_size, int count, string file_name)
 {
     using namespace cereal;
     using std::placeholders::_1;
@@ -708,24 +705,24 @@ int main(int argc, char* argv[])
     os << "To run one test explicitly\n";
     os << "0\t All tests (default)\n";
     os << "1\t write_rocks\n";
-    os << "2\t file_stream_write\n";
-    os << "3\t c_style_io_write\n";
+    os << "2\t write_file_stream\n";
+    os << "3\t write_c_style_io\n";
     os << "4\t read_rocks\n";
-    os << "5\t file_stream_read\n";
-    os << "6\t c_style_io_read\n";
-    os << "7\t file_stream_write_seq\n";
-    os << "8\t c_style_io_write_seq\n";
-    os << "9\t file_stream_read_seq\n";
-    os << "10\t c_style_io_read_seq\n";
-    os << "11\t hdf5_write\n";
-    os << "12\t hdf5_read\n";
-    os << "13\t hdf5_write_seq\n";
-    os << "14\t mio_write\n";
-    os << "15\t mio_read\n";
-    os << "16\t mio_write_seq\n";
-    os << "17\t mio_read_seq\n";
-    os << "18\t cereal_write_seq\n";
-    os << "19\t cereal_read_seq\n";
+    os << "5\t read_file_stream\n";
+    os << "6\t read_c_style_io\n";
+    os << "7\t seq_write_file_stream\n";
+    os << "8\t seq_write_c_style_io\n";
+    os << "9\t seq_read_file_stream\n";
+    os << "10\t seq_read_c_style_io\n";
+    os << "11\t write_hdf5\n";
+    os << "12\t read_hdf5\n";
+    os << "13\t seq_write_hdf5\n";
+    os << "14\t write_mio\n";
+    os << "15\t read_mio\n";
+    os << "16\t seq_write_mio\n";
+    os << "17\t seq_read_mio\n";
+    os << "18\t seq_write_cereal\n";
+    os << "19\t seq_read_cereal\n";
 
     args::ArgumentParser parser("This is a io performance test program.", os.str());
     args::HelpFlag help(parser, "help", "Display this help menu", { 'h', "help" });
@@ -795,16 +792,16 @@ int main(int argc, char* argv[])
 
     if (t.empty() || find(t.begin(), t.end(), 2) != t.end())
     {
-        cout << "Running file_stream_write ..." << endl;
-        secs = file_stream_write(blob, nbr_of_blobs, path + "/file_stream_write" + extension);
-        print_result(secs, "file_stream_write", blob.size(), nbr_of_blobs);
+        cout << "Running write_file_stream ..." << endl;
+        secs = write_file_stream(blob, nbr_of_blobs, path + "/write_file_stream" + extension);
+        print_result(secs, "write_file_stream", blob.size(), nbr_of_blobs);
     }
 
     if (t.empty() || find(t.begin(), t.end(), 3) != t.end())
     {
-        cout << "Running c_style_io_write ..." << endl;
-        secs = c_style_io_write(blob, nbr_of_blobs, path + "/c_style_io_write" + extension);
-        print_result(secs, "c_style_io_write", blob.size(), nbr_of_blobs);
+        cout << "Running write_c_style_io ..." << endl;
+        secs = write_c_style_io(blob, nbr_of_blobs, path + "/write_c_style_io" + extension);
+        print_result(secs, "write_c_style_io", blob.size(), nbr_of_blobs);
     }
     
     if (t.empty() || find(t.begin(), t.end(), 4) != t.end())
@@ -816,107 +813,107 @@ int main(int argc, char* argv[])
 
     if (t.empty() || find(t.begin(), t.end(), 5) != t.end())
     {
-        cout << "Running file_stream_read ..." << endl;
-        secs = file_stream_read(blob, nbr_of_blobs, path + "/file_stream_write" + extension);
-        print_result(secs, "file_stream_read", blob.size(), nbr_of_blobs);
+        cout << "Running read_file_stream ..." << endl;
+        secs = read_file_stream(blob, nbr_of_blobs, path + "/write_file_stream" + extension);
+        print_result(secs, "read_file_stream", blob.size(), nbr_of_blobs);
     }
 
     if (t.empty() || find(t.begin(), t.end(), 6) != t.end())
     {
-        cout << "Running c_style_io_read ..." << endl;
-        secs = c_style_io_read(blob, nbr_of_blobs, path + "/c_style_io_write" + extension);
-        print_result(secs, "c_style_io_read", blob.size(), nbr_of_blobs);
+        cout << "Running read_c_style_io ..." << endl;
+        secs = read_c_style_io(blob, nbr_of_blobs, path + "/write_c_style_io" + extension);
+        print_result(secs, "read_c_style_io", blob.size(), nbr_of_blobs);
     }
 
     if (t.empty() || find(t.begin(), t.end(), 7) != t.end())
     {
-        cout << "Running file_stream_write_seq ..." << endl;
-        secs = file_stream_write_seq(blob.size(), nbr_of_blobs, path + "/file_stream_write_seq" + extension);
-        print_result(secs, "file_stream_write_seq", blob.size(), nbr_of_blobs);
+        cout << "Running seq_write_file_stream ..." << endl;
+        secs = seq_write_file_stream(blob.size(), nbr_of_blobs, path + "/seq_write_file_stream" + extension);
+        print_result(secs, "seq_write_file_stream", blob.size(), nbr_of_blobs);
     }
 
     if (t.empty() || find(t.begin(), t.end(), 8) != t.end())
     {
-        cout << "Running c_style_io_write_seq ..." << endl;
-        secs = c_style_io_write_seq(blob.size(), nbr_of_blobs, path + "/c_style_io_write_seq" + extension);
-        print_result(secs, "c_style_io_write_seq", blob.size(), nbr_of_blobs);
+        cout << "Running seq_write_c_style_io ..." << endl;
+        secs = seq_write_c_style_io(blob.size(), nbr_of_blobs, path + "/seq_write_c_style_io" + extension);
+        print_result(secs, "seq_write_c_style_io", blob.size(), nbr_of_blobs);
     }
 
     if (t.empty() || find(t.begin(), t.end(), 9) != t.end())
     {
-        cout << "Running file_stream_read_seq ..." << endl;
-        secs = file_stream_read_seq(blob.size(), nbr_of_blobs, path + "/file_stream_write_seq" + extension);
-        print_result(secs, "file_stream_read_seq", blob.size(), nbr_of_blobs);
+        cout << "Running seq_read_file_stream ..." << endl;
+        secs = seq_read_file_stream(blob.size(), nbr_of_blobs, path + "/seq_write_file_stream" + extension);
+        print_result(secs, "seq_read_file_stream", blob.size(), nbr_of_blobs);
     }
 
     if (t.empty() || find(t.begin(), t.end(), 10) != t.end())
     {
-        cout << "Running c_style_io_read_seq ..." << endl;
-        secs = c_style_io_read_seq(blob.size(), nbr_of_blobs, path + "/c_style_io_write_seq" + extension);
-        print_result(secs, "c_style_io_read_seq", blob.size(), nbr_of_blobs);
+        cout << "Running seq_read_c_style_io ..." << endl;
+        secs = seq_read_c_style_io(blob.size(), nbr_of_blobs, path + "/seq_write_c_style_io" + extension);
+        print_result(secs, "seq_read_c_style_io", blob.size(), nbr_of_blobs);
     }
 
     if (t.empty() || find(t.begin(), t.end(), 11) != t.end())
     {
-        cout << "Running hdf5_write ..." << endl;
-        secs = hdf5_write(blob, nbr_of_blobs, path + "/hdf5_write" + extension);
-        print_result(secs, "hdf5_write", blob.size(), nbr_of_blobs);
+        cout << "Running write_hdf5 ..." << endl;
+        secs = write_hdf5(blob, nbr_of_blobs, path + "/write_hdf5" + extension);
+        print_result(secs, "write_hdf5", blob.size(), nbr_of_blobs);
     }
 
     if (t.empty() || find(t.begin(), t.end(), 12) != t.end())
     {
-        cout << "Running hdf5_read ..." << endl;
-        secs = hdf5_read(blob, nbr_of_blobs, path + "/hdf5_write" + extension);
-        print_result(secs, "hdf5_read", blob.size(), nbr_of_blobs);
+        cout << "Running read_hdf5 ..." << endl;
+        secs = read_hdf5(blob, nbr_of_blobs, path + "/write_hdf5" + extension);
+        print_result(secs, "read_hdf5", blob.size(), nbr_of_blobs);
     }
 
     if (t.empty() || find(t.begin(), t.end(), 13) != t.end())
     {
-        cout << "Running hdf5_write_seq ..." << endl;
-        secs = hdf5_write_seq(blob.size(), nbr_of_blobs, path + "/hdf5_write_seq" + extension);
-        print_result(secs, "hdf5_write_seq", blob.size(), nbr_of_blobs);
+        cout << "Running seq_write_hdf5 ..." << endl;
+        secs = seq_write_hdf5(blob.size(), nbr_of_blobs, path + "/seq_write_hdf5" + extension);
+        print_result(secs, "seq_write_hdf5", blob.size(), nbr_of_blobs);
     }
 
     if (t.empty() || find(t.begin(), t.end(), 14) != t.end())
     {
-        cout << "Running mio_write ..." << endl;
-        secs = mio_write(blob, nbr_of_blobs, path + "/mio_write" + extension);
-        print_result(secs, "mio_write", blob.size(), nbr_of_blobs);
+        cout << "Running write_mio ..." << endl;
+        secs = write_mio(blob, nbr_of_blobs, path + "/write_mio" + extension);
+        print_result(secs, "write_mio", blob.size(), nbr_of_blobs);
     }
 
     if (t.empty() || find(t.begin(), t.end(), 15) != t.end())
     {
-        cout << "Running mio_read ..." << endl;
-        secs = mio_read(blob, nbr_of_blobs, path + "/mio_write" + extension);
-        print_result(secs, "mio_read", blob.size(), nbr_of_blobs);
+        cout << "Running read_mio ..." << endl;
+        secs = read_mio(blob, nbr_of_blobs, path + "/write_mio" + extension);
+        print_result(secs, "read_mio", blob.size(), nbr_of_blobs);
     }
 
     if (t.empty() || find(t.begin(), t.end(), 16) != t.end())
     {
-        cout << "Running mio_write_seq ..." << endl;
-        secs = mio_write_seq(blob.size(), nbr_of_blobs, path + "/mio_write_seq" + extension);
-        print_result(secs, "mio_write_seq", blob.size(), nbr_of_blobs);
+        cout << "Running seq_write_mio ..." << endl;
+        secs = seq_write_mio(blob.size(), nbr_of_blobs, path + "/seq_write_mio" + extension);
+        print_result(secs, "seq_write_mio", blob.size(), nbr_of_blobs);
     }
 
     if (t.empty() || find(t.begin(), t.end(), 17) != t.end())
     {
-        cout << "Running mio_read_seq ..." << endl;
-        secs = mio_read_seq(blob.size(), nbr_of_blobs, path + "/mio_write_seq" + extension);
-        print_result(secs, "mio_read_seq", blob.size(), nbr_of_blobs);
+        cout << "Running seq_read_mio ..." << endl;
+        secs = seq_read_mio(blob.size(), nbr_of_blobs, path + "/seq_write_mio" + extension);
+        print_result(secs, "seq_read_mio", blob.size(), nbr_of_blobs);
     }
 
     if (t.empty() || find(t.begin(), t.end(), 18) != t.end())
     {
-        cout << "Running cereal_write_seq ..." << endl;
-        secs = cereal_write_seq(blob.size(), nbr_of_blobs, path + "/cereal_write_seq" + extension);
-        print_result(secs, "cereal_write_seq", blob.size(), nbr_of_blobs);
+        cout << "Running seq_write_cereal ..." << endl;
+        secs = seq_write_cereal(blob.size(), nbr_of_blobs, path + "/seq_write_cereal" + extension);
+        print_result(secs, "seq_write_cereal", blob.size(), nbr_of_blobs);
     }
 
     if (t.empty() || find(t.begin(), t.end(), 19) != t.end())
     {
-        cout << "Running cereal_read_seq ..." << endl;
-        secs = cereal_read_seq(blob.size(), nbr_of_blobs, path + "/cereal_write_seq" + extension);
-        print_result(secs, "cereal_read_seq", blob.size(), nbr_of_blobs);
+        cout << "Running seq_read_cereal ..." << endl;
+        secs = seq_read_cereal(blob.size(), nbr_of_blobs, path + "/seq_write_cereal" + extension);
+        print_result(secs, "seq_read_cereal", blob.size(), nbr_of_blobs);
     }
 
     timer.stop();
