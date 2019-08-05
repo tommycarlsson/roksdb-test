@@ -113,7 +113,6 @@ double write_rocks(Blob& blob, int count, string file_name)
     options.create_if_missing = true;
 
     // open DB
-    //Status s = DB::Open(options, "Z:/tmp/rocksdb-test/big-data", &db);
     Status s = DB::Open(options, file_name, &db);
 
     Timer timer;
@@ -681,6 +680,53 @@ double seq_read_cereal(size_t blob_size, int count, string file_name)
     return timer.elapsedSeconds();
 }
 
+double write_cereal(Blob& blob, int count, string file_name)
+{
+    using namespace cereal;
+
+    auto nbrOfFakes(blob.size() / sizeof(Fake));
+    FakeData fakeData;
+    fakeData.fakes.resize(nbrOfFakes);
+
+    Timer timer;
+    for (auto i(0); i != count; ++i)
+    {
+        auto name = file_name + to_string(i);
+        timer.start();
+        auto myfile = ofstream(name, ios::binary | ios::trunc);
+        myfile.rdbuf()->pubsetbuf(buf.get(), bufsize);
+        BinaryOutputArchive oarchive(myfile);
+        oarchive(fakeData);
+        myfile.close();
+        timer.stop();
+        cout << '#';
+    }
+    cout << endl;
+    return timer.elapsedSeconds();
+}
+
+double read_cereal(Blob& blob, int count, string file_name)
+{
+    using namespace cereal;
+
+    FakeData fakeData;
+
+    Timer timer;
+    for (auto i(0); i != count; ++i)
+    {
+        auto name = file_name + to_string(i);
+        timer.start();
+        auto myfile = ifstream(name, ios::binary);
+        BinaryInputArchive iarchive(myfile);
+        iarchive(fakeData);
+        myfile.close();
+        timer.stop();
+        cout << '#';
+    }
+    cout << endl;
+    return timer.elapsedSeconds();
+}
+
 void emptyWorkingSet()
 {
 #ifdef _WIN32
@@ -723,6 +769,8 @@ int main(int argc, char* argv[])
     os << "17\t seq_read_mio\n";
     os << "18\t seq_write_cereal\n";
     os << "19\t seq_read_cereal\n";
+    os << "20\t write_cereal\n";
+    os << "21\t read_cereal\n";
 
     args::ArgumentParser parser("This is a io performance test program.", os.str());
     args::HelpFlag help(parser, "help", "Display this help menu", { 'h', "help" });
@@ -914,6 +962,20 @@ int main(int argc, char* argv[])
         cout << "Running seq_read_cereal ..." << endl;
         secs = seq_read_cereal(blob.size(), nbr_of_blobs, path + "/seq_write_cereal" + extension);
         print_result(secs, "seq_read_cereal", blob.size(), nbr_of_blobs);
+    }
+
+    if (t.empty() || find(t.begin(), t.end(), 20) != t.end())
+    {
+        cout << "Running write_cereal ..." << endl;
+        secs = write_cereal(blob, nbr_of_blobs, path + "/write_cereal" + extension);
+        print_result(secs, "write_cereal", blob.size(), nbr_of_blobs);
+    }
+
+    if (t.empty() || find(t.begin(), t.end(), 21) != t.end())
+    {
+        cout << "Running read_cereal ..." << endl;
+        secs = read_cereal(blob, nbr_of_blobs, path + "/write_cereal" + extension);
+        print_result(secs, "read_cereal", blob.size(), nbr_of_blobs);
     }
 
     timer.stop();
