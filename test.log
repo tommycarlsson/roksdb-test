@@ -1,0 +1,250 @@
+[07/22/19 17:17:04] ===== Start test with a blob of size 15728640 bytes and with 100 nbr of blobs ============
+[07/22/19 17:17:05]    1.20s,  1248.1MB/s :file_stream_write
+[07/22/19 17:17:06]    0.32s,  4618.9MB/s :c_style_io_write
+[07/22/19 17:17:07]    1.50s,  1001.8MB/s :file_stream_read
+[07/22/19 17:17:07]    0.22s,  6851.6MB/s :c_style_io_read
+[07/22/19 17:17:09]    1.89s,   791.6MB/s :file_stream_write_seq
+[07/22/19 17:17:11]    1.73s,   866.9MB/s :c_style_io_write_seq
+[07/22/19 17:17:12]    1.10s,  1360.7MB/s :file_stream_read_seq
+[07/22/19 17:17:13]    1.08s,  1384.5MB/s :c_style_io_read_seq
+[07/22/19 17:17:14]    0.91s,  1652.5MB/s :hdf5_write
+[07/22/19 17:17:14]    0.24s,  6373.3MB/s :hdf5_read
+[07/22/19 17:19:07]  112.15s,    13.4MB/s :hdf5_write_seq
+[07/22/19 17:19:07] Total time: 122.793s
+[07/22/19 17:21:12] ===== Start test with a blob of size 15728640 bytes and with 100 nbr of blobs ============
+[07/22/19 17:21:13]    1.10s,  1367.9MB/s :file_stream_write
+[07/22/19 17:21:14]    0.31s,  4819.9MB/s :c_style_io_write
+[07/22/19 17:21:14]    0.75s,  2002.1MB/s :file_stream_read
+[07/22/19 17:21:15]    0.25s,  6087.7MB/s :c_style_io_read
+[07/22/19 17:21:16]    1.76s,   854.2MB/s :file_stream_write_seq
+[07/22/19 17:21:18]    1.57s,   955.3MB/s :c_style_io_write_seq
+[07/22/19 17:21:19]    1.09s,  1371.2MB/s :file_stream_read_seq
+[07/22/19 17:21:20]    1.11s,  1356.4MB/s :c_style_io_read_seq
+[07/22/19 17:21:20]    0.34s,  4358.9MB/s :hdf5_write
+[07/22/19 17:21:21]    0.27s,  5527.2MB/s :hdf5_read
+[07/22/19 17:23:10]  109.24s,    13.7MB/s :hdf5_write_seq
+[07/22/19 17:23:10] Total time: 118.256s
+[07/23/19 10:28:16] ===== 1KB chunk Start test with a blob of size 15728640 bytes and with 100 nbr of blobs ============
+[07/23/19 10:29:05]   48.61s,    30.9MB/s :hdf5_write_seq
+[07/23/19 10:29:05] Total time: 48.9161s
+[07/23/19 10:31:30] ===== Start test with a blob of size 15728640 bytes and with 100 nbr of blobs ============
+[07/23/19 10:32:17]   46.10s,    32.5MB/s :hdf5_write_seq
+[07/23/19 10:32:17] Total time: 46.4005s
+[07/23/19 13:09:15] ===== 1000x96 chunk Start test with a blob of size 15728640 bytes and with 100 nbr of blobs ============
+[07/23/19 13:09:52]   37.30s,    40.2MB/s :hdf5_write_seq
+[07/23/19 13:09:52] Total time: 37.3989s
+[07/23/19 13:12:11] ===== 10000x96 chunk Start test with a blob of size 15728640 bytes and with 100 nbr of blobs ============
+[07/23/19 13:12:47]   35.69s,    42.0MB/s :hdf5_write_seq
+[07/23/19 13:12:47] Total time: 35.7273s
+[07/23/19 14:06:04] ===== 1MB chunk, Start test with a blob of size 15728640 bytes and with 100 nbr of blobs ============
+[07/23/19 14:06:35]   30.99s,    48.4MB/s :hdf5_write_seq
+[07/23/19 14:06:35] Total time: 31.0284s
+[07/23/19 14:07:47] ===== prealloc 15MB, Start test with a blob of size 15728640 bytes and with 100 nbr of blobs ============
+[07/23/19 14:08:18]   30.78s,    48.7MB/s :hdf5_write_seq
+[07/23/19 14:08:18] Total time: 30.818s
+[07/23/19 15:20:02] ===== Start test with a blob of size 15728640 bytes and with 100 nbr of blobs ============
+[07/23/19 15:20:33]   31.86s,    47.1MB/s :hdf5_write_seq
+[07/23/19 15:20:33] Total time: 31.9048s
+[07/24/19 11:01:25] ===== Start test with a blob of size 15728640 bytes and with 100 nbr of blobs ============
+[07/24/19 11:01:41]    1.14s,  1317.4MB/s :file_stream_write
+[07/24/19 11:01:55]    0.36s,  4189.1MB/s :c_style_io_write
+[07/24/19 11:01:56]    0.74s,  2036.9MB/s :file_stream_read
+[07/24/19 11:01:56]    0.27s,  5653.7MB/s :c_style_io_read
+[07/24/19 11:02:37]    2.11s,   710.9MB/s :file_stream_write_seq
+[07/24/19 11:03:18]    1.84s,   814.8MB/s :c_style_io_write_seq
+[07/24/19 11:03:19]    1.08s,  1388.0MB/s :file_stream_read_seq
+[07/24/19 11:03:20]    1.08s,  1385.8MB/s :c_style_io_read_seq
+[07/24/19 11:03:35]    0.36s,  4191.5MB/s :hdf5_write
+[07/24/19 11:03:35]    0.24s,  6251.8MB/s :hdf5_read
+[07/24/19 11:04:46]   32.23s,    46.5MB/s :hdf5_write_seq
+[07/24/19 11:04:46] Total time: 200.851s
+[07/24/19 11:18:12] ===== Start test with a blob of size 15728640 bytes and with 100 nbr of blobs ============
+[07/24/19 11:18:27]    1.22s,  1226.5MB/s :file_stream_write
+[07/24/19 11:18:41]    0.39s,  3876.9MB/s :c_style_io_write
+[07/24/19 11:18:42]    0.71s,  2102.9MB/s :file_stream_read
+[07/24/19 11:18:42]    0.45s,  3302.4MB/s :c_style_io_read
+[07/24/19 11:19:23]    2.08s,   722.1MB/s :file_stream_write_seq
+[07/24/19 11:20:04]    1.88s,   797.1MB/s :c_style_io_write_seq
+[07/24/19 11:20:05]    1.07s,  1398.4MB/s :file_stream_read_seq
+[07/24/19 11:20:06]    1.09s,  1373.8MB/s :c_style_io_read_seq
+[07/24/19 11:20:21]    0.42s,  3573.9MB/s :hdf5_write
+[07/24/19 11:20:21]    0.22s,  6702.9MB/s :hdf5_read
+[07/24/19 11:21:33]   32.24s,    46.5MB/s :hdf5_write_seq
+[07/24/19 11:21:33] Total time: 200.955s
+[07/24/19 11:54:28] ===== Start test with a rnd (true) blob of size 15728640 bytes and with 100 nbr of blobs ============
+[07/24/19 11:54:43]    0.40s,  3704.7MB/s :file_stream_write
+[07/24/19 11:54:58]    0.40s,  3715.4MB/s :c_style_io_write
+[07/24/19 11:54:59]    0.74s,  2025.5MB/s :file_stream_read
+[07/24/19 11:54:59]    0.44s,  3419.7MB/s :c_style_io_read
+[07/24/19 11:55:39]    1.21s,  1235.1MB/s :file_stream_write_seq
+[07/24/19 11:56:20]    1.81s,   829.3MB/s :c_style_io_write_seq
+[07/24/19 11:56:21]    1.09s,  1374.4MB/s :file_stream_read_seq
+[07/24/19 11:56:23]    1.14s,  1313.9MB/s :c_style_io_read_seq
+[07/24/19 11:56:37]    0.35s,  4237.1MB/s :hdf5_write
+[07/24/19 11:56:38]    0.26s,  5851.2MB/s :hdf5_read
+[07/24/19 11:57:49]   31.85s,    47.1MB/s :hdf5_write_seq
+[07/24/19 11:57:49] Total time: 200.325s
+[07/24/19 12:03:44] ===== Start test with a rnd (true) blob of size 15728640 bytes and with 100 nbr of blobs ============
+[07/24/19 12:03:58]    0.40s,  3740.9MB/s :file_stream_write
+[07/24/19 12:04:12]    0.41s,  3659.2MB/s :c_style_io_write
+[07/24/19 12:04:13]    0.74s,  2020.5MB/s :file_stream_read
+[07/24/19 12:04:13]    0.27s,  5608.8MB/s :c_style_io_read
+[07/24/19 12:04:54]    1.33s,  1129.3MB/s :file_stream_write_seq
+[07/24/19 12:05:35]    1.90s,   790.8MB/s :c_style_io_write_seq
+[07/24/19 12:05:36]    1.12s,  1345.3MB/s :file_stream_read_seq
+[07/24/19 12:05:37]    1.13s,  1330.6MB/s :c_style_io_read_seq
+[07/24/19 12:05:51]    0.36s,  4165.6MB/s :hdf5_write
+[07/24/19 12:05:52]    0.26s,  5698.4MB/s :hdf5_read
+[07/24/19 12:07:03]   31.56s,    47.5MB/s :hdf5_write_seq
+[07/24/19 12:07:03] Total time: 199.121s
+[07/24/19 15:42:01] ===== Start test with a rnd (true) blob of size 15728640 bytes and with 100 nbr of blobs ============
+[07/24/19 15:42:15]    0.40s,  3790.1MB/s :file_stream_write
+[07/24/19 15:42:29]    0.31s,  4791.1MB/s :c_style_io_write
+[07/24/19 15:42:30]    0.72s,  2075.0MB/s :file_stream_read
+[07/24/19 15:42:30]    0.20s,  7341.0MB/s :c_style_io_read
+[07/24/19 15:43:10]    1.27s,  1177.7MB/s :file_stream_write_seq
+[07/24/19 15:43:50]    2.16s,   693.3MB/s :c_style_io_write_seq
+[07/24/19 15:43:51]    1.06s,  1413.3MB/s :file_stream_read_seq
+[07/24/19 15:43:52]    1.14s,  1310.6MB/s :c_style_io_read_seq
+[07/24/19 15:44:06]    0.40s,  3751.5MB/s :hdf5_write
+[07/24/19 15:44:06]    0.22s,  6793.4MB/s :hdf5_read
+[07/24/19 15:45:17]   31.73s,    47.3MB/s :hdf5_write_seq
+[07/24/19 15:45:44]   14.15s,   106.0MB/s :mio_write
+[07/24/19 15:45:45]    0.48s,  3145.8MB/s :mio_read
+[07/24/19 15:45:45]    0.44s,  3423.9MB/s :mio_read_seq
+[07/24/19 15:45:45] Total time: 224.003s
+[07/24/19 17:00:31] ===== Start test with a rnd (true) blob of size 15728640 bytes and with 100 nbr of blobs ============
+[07/24/19 17:00:39]    4.31s,   348.4MB/s :write_rocks
+[07/24/19 17:00:54]    0.40s,  3739.3MB/s :file_stream_write
+[07/24/19 17:01:08]    0.32s,  4757.0MB/s :c_style_io_write
+[07/24/19 17:01:12]    0.67s,  2252.4MB/s :read_rocks
+[07/24/19 17:01:13]    0.76s,  1980.4MB/s :file_stream_read
+[07/24/19 17:01:13]    0.23s,  6433.6MB/s :c_style_io_read
+[07/24/19 17:01:54]    1.25s,  1202.4MB/s :file_stream_write_seq
+[07/24/19 17:02:36]    1.95s,   769.6MB/s :c_style_io_write_seq
+[07/24/19 17:02:37]    1.09s,  1377.2MB/s :file_stream_read_seq
+[07/24/19 17:02:38]    1.07s,  1406.2MB/s :c_style_io_read_seq
+[07/24/19 17:02:52]    0.36s,  4207.2MB/s :hdf5_write
+[07/24/19 17:02:53]    0.23s,  6410.4MB/s :hdf5_read
+[07/24/19 17:04:05]   32.39s,    46.3MB/s :hdf5_write_seq
+[07/24/19 17:04:35]   15.61s,    96.1MB/s :mio_write
+[07/24/19 17:04:36]    0.49s,  3090.1MB/s :mio_read
+[07/24/19 17:04:36]    0.43s,  3456.6MB/s :mio_read_seq
+[07/24/19 17:04:36] Total time: 245.08s
+[07/24/19 17:21:56] ===== Start test with a rnd (true) blob of size 15728640 bytes and with 100 nbr of blobs ============
+[07/24/19 17:22:03]    5.24s,   286.2MB/s :write_rocks
+[07/24/19 17:22:18]    0.57s,  2623.4MB/s :file_stream_write
+[07/24/19 17:22:33]    0.40s,  3776.4MB/s :c_style_io_write
+[07/24/19 17:22:35]    0.66s,  2279.1MB/s :read_rocks
+[07/24/19 17:22:36]    0.73s,  2067.5MB/s :file_stream_read
+[07/24/19 17:22:36]    0.22s,  6747.8MB/s :c_style_io_read
+[07/24/19 17:23:17]    1.38s,  1086.8MB/s :file_stream_write_seq
+[07/24/19 17:23:59]    1.86s,   804.8MB/s :c_style_io_write_seq
+[07/24/19 17:24:00]    1.14s,  1321.0MB/s :file_stream_read_seq
+[07/24/19 17:24:01]    1.28s,  1172.7MB/s :c_style_io_read_seq
+[07/24/19 17:24:16]    0.70s,  2131.1MB/s :hdf5_write
+[07/24/19 17:24:16]    0.24s,  6275.8MB/s :hdf5_read
+[07/24/19 17:25:29]   32.04s,    46.8MB/s :hdf5_write_seq
+[07/24/19 17:26:19]   35.73s,    42.0MB/s :mio_write
+[07/24/19 17:26:19]    0.48s,  3095.1MB/s :mio_read
+[07/24/19 17:26:20]    0.44s,  3413.1MB/s :mio_read_seq
+[07/24/19 17:26:20] Total time: 264.342s
+[08/05/19 10:34:06] ===== Start test with a rnd (true) blob of size 15728640 bytes and with 100 nbr of blobs ============
+[08/05/19 10:34:24]   18.48s,    81.2MB/s :write_rocks
+[08/05/19 10:34:40]    2.03s,   737.9MB/s :file_stream_write
+[08/05/19 10:34:55]    1.81s,   827.7MB/s :c_style_io_write
+[08/05/19 10:34:58]    1.43s,  1052.5MB/s :read_rocks
+[08/05/19 10:35:00]    2.28s,   657.8MB/s :file_stream_read
+[08/05/19 10:35:01]    1.62s,   925.3MB/s :c_style_io_read
+[08/05/19 10:35:42]    2.72s,   551.7MB/s :file_stream_write_seq
+[08/05/19 10:37:14]   51.62s,    29.1MB/s :c_style_io_write_seq
+[08/05/19 10:37:17]    2.25s,   667.7MB/s :file_stream_read_seq
+[08/05/19 10:37:19]    2.22s,   674.8MB/s :c_style_io_read_seq
+[08/05/19 10:37:35]    2.24s,   669.7MB/s :hdf5_write
+[08/05/19 10:37:37]    1.69s,   885.3MB/s :hdf5_read
+[08/05/19 10:38:50]   32.79s,    45.7MB/s :hdf5_write_seq
+[08/05/19 10:39:09]    4.63s,   324.2MB/s :mio_write
+[08/05/19 10:39:11]    2.47s,   607.6MB/s :mio_read
+[08/05/19 10:39:12]    0.44s,  3431.0MB/s :mio_read_seq
+[08/05/19 10:39:12] Total time: 306.335s
+
+
+[08/05/19 14:35:19] ===== Start test with a rnd (true) blob of size 15728640 bytes and with 100 nbr of blobs ============
+[08/05/19 14:35:19] Args: -r -d Z:/tmp/disk-io-test 
+[08/05/19 14:35:39]   19.78s,    75.8MB/s :write_rocks
+[08/05/19 14:35:57]    4.62s,   325.0MB/s :file_stream_write
+[08/05/19 14:36:13]    2.08s,   720.1MB/s :c_style_io_write
+[08/05/19 14:36:15]    1.45s,  1033.3MB/s :read_rocks
+[08/05/19 14:36:17]    2.14s,   700.4MB/s :file_stream_read
+[08/05/19 14:36:19]    1.63s,   920.0MB/s :c_style_io_read
+[08/05/19 14:37:02]    4.76s,   315.5MB/s :file_stream_write_seq
+[08/05/19 14:38:32]   50.35s,    29.8MB/s :c_style_io_write_seq
+[08/05/19 14:38:34]    2.21s,   677.7MB/s :file_stream_read_seq
+[08/05/19 14:38:37]    2.21s,   680.0MB/s :c_style_io_read_seq
+[08/05/19 14:38:52]    2.26s,   663.9MB/s :hdf5_write
+[08/05/19 14:38:54]    1.70s,   882.9MB/s :hdf5_read
+[08/05/19 14:40:08]   33.28s,    45.1MB/s :hdf5_write_seq
+[08/05/19 14:40:26]    4.37s,   343.1MB/s :mio_write
+[08/05/19 14:40:29]    2.50s,   601.1MB/s :mio_read
+
+[08/05/19 15:23:30] ===== Start test with a rnd (true) blob of size 15728640 bytes and with 100 nbr of blobs ============
+[08/05/19 15:23:30] Args: -r 
+[08/05/19 15:23:43]   10.22s,   146.7MB/s :write_rocks
+[08/05/19 15:23:57]    0.39s,  3891.0MB/s :file_stream_write
+[08/05/19 15:24:11]    0.31s,  4845.6MB/s :c_style_io_write
+[08/05/19 15:24:15]    0.67s,  2249.4MB/s :read_rocks
+[08/05/19 15:24:16]    0.72s,  2071.9MB/s :file_stream_read
+[08/05/19 15:24:16]    0.21s,  7067.6MB/s :c_style_io_read
+[08/05/19 15:24:56]    1.21s,  1243.2MB/s :file_stream_write_seq
+[08/05/19 15:25:37]    1.79s,   838.4MB/s :c_style_io_write_seq
+[08/05/19 15:25:38]    1.09s,  1372.1MB/s :file_stream_read_seq
+[08/05/19 15:25:39]    1.09s,  1375.0MB/s :c_style_io_read_seq
+[08/05/19 15:25:54]    0.43s,  3450.0MB/s :hdf5_write
+[08/05/19 15:25:54]    0.22s,  6711.1MB/s :hdf5_read
+[08/05/19 15:27:06]   32.84s,    45.7MB/s :hdf5_write_seq
+[08/05/19 15:27:33]   13.10s,   114.5MB/s :mio_write
+[08/05/19 15:27:33]    0.48s,  3137.9MB/s :mio_read
+[08/05/19 15:28:28]   16.30s,    92.0MB/s :mio_write_seq
+[08/05/19 15:28:29]    0.43s,  3452.1MB/s :mio_read_seq
+[08/05/19 15:29:10]    2.36s,   636.8MB/s :cereal_write_seq
+[08/05/19 15:29:56]   45.85s,    32.7MB/s :cereal_read_seq
+[08/05/19 15:29:56] Total time: 386.088s
+
+[08/05/19 16:11:14] ===== Start test with a rnd (true) blob of size 15728640 bytes and with 100 nbr of blobs ============
+[08/05/19 16:11:14] Args: -r 
+[08/05/19 16:11:22]    4.63s,   324.1MB/s :write_rocks
+[08/05/19 16:11:36]    1.10s,  1362.2MB/s :write_file_stream
+[08/05/19 16:11:50]    0.36s,  4163.5MB/s :write_c_style_io
+[08/05/19 16:11:53]    0.66s,  2258.3MB/s :read_rocks
+[08/05/19 16:11:54]    0.73s,  2065.2MB/s :read_file_stream
+[08/05/19 16:11:54]    0.40s,  3768.4MB/s :read_c_style_io
+[08/05/19 16:12:35]    1.60s,   939.2MB/s :seq_write_file_stream
+[08/05/19 16:13:16]    1.79s,   838.5MB/s :seq_write_c_style_io
+[08/05/19 16:13:17]    1.09s,  1377.7MB/s :seq_read_file_stream
+[08/05/19 16:13:18]    1.08s,  1385.8MB/s :seq_read_c_style_io
+[08/05/19 16:13:32]    0.33s,  4593.8MB/s :write_hdf5
+[08/05/19 16:13:32]    0.23s,  6566.7MB/s :read_hdf5
+[08/05/19 16:14:43]   31.93s,    47.0MB/s :seq_write_hdf5
+[08/05/19 16:15:30] ===== Start test with a rnd (true) blob of size 15728640 bytes and with 100 nbr of blobs ============
+[08/05/19 16:15:30] Args: -r 
+[08/05/19 16:15:46]    1.46s,  1024.0MB/s :write_rocks
+[08/05/19 16:16:01]    0.38s,  3942.5MB/s :write_file_stream
+[08/05/19 16:16:15]    0.38s,  3995.9MB/s :write_c_style_io
+[08/05/19 16:16:16]    0.62s,  2430.3MB/s :read_rocks
+[08/05/19 16:16:17]    0.73s,  2061.6MB/s :read_file_stream
+[08/05/19 16:16:17]    0.49s,  3055.2MB/s :read_c_style_io
+[08/05/19 16:16:58]    1.18s,  1266.6MB/s :seq_write_file_stream
+[08/05/19 16:17:38]    1.79s,   838.0MB/s :seq_write_c_style_io
+[08/05/19 16:17:39]    1.07s,  1406.3MB/s :seq_read_file_stream
+[08/05/19 16:17:40]    1.15s,  1302.0MB/s :seq_read_c_style_io
+[08/05/19 16:17:54]    0.33s,  4611.7MB/s :write_hdf5
+[08/05/19 16:17:55]    0.23s,  6582.7MB/s :read_hdf5
+[08/05/19 16:19:06]   32.55s,    46.1MB/s :seq_write_hdf5
+[08/05/19 16:19:35]   15.11s,    99.3MB/s :write_mio
+[08/05/19 16:19:36]    0.48s,  3116.1MB/s :read_mio
+[08/05/19 16:20:30]   15.37s,    97.6MB/s :seq_write_mio
+[08/05/19 16:20:30]    0.43s,  3461.5MB/s :seq_read_mio
+[08/05/19 16:21:11]    2.25s,   666.9MB/s :seq_write_cereal
+[08/05/19 16:21:58]   46.37s,    32.3MB/s :seq_read_cereal
+[08/05/19 16:21:58] Total time: 387.476s
+
