@@ -248,3 +248,30 @@
 [08/05/19 16:21:58]   46.37s,    32.3MB/s :seq_read_cereal
 [08/05/19 16:21:58] Total time: 387.476s
 
+[08/26/19 15:34:41] ===== Start test with a rnd (true) blob of size 15728640 bytes and with 100 nbr of blobs ============
+[08/26/19 15:34:41] Args: -r 
+[08/26/19 15:34:58]    1.45s,  1031.3MB/s :write_rocks
+[08/26/19 15:35:12]    0.38s,  3932.8MB/s :write_file_stream
+[08/26/19 15:35:27]    0.35s,  4294.2MB/s :write_c_style_io
+[08/26/19 15:35:28]    0.63s,  2389.2MB/s :read_rocks
+[08/26/19 15:35:29]    0.72s,  2079.5MB/s :read_file_stream
+[08/26/19 15:35:29]    0.24s,  6360.7MB/s :read_c_style_io
+[08/26/19 15:36:10]    1.23s,  1223.0MB/s :seq_write_file_stream
+[08/26/19 15:36:51]    1.79s,   840.1MB/s :seq_write_c_style_io
+[08/26/19 15:36:52]    1.09s,  1370.3MB/s :seq_read_file_stream
+[08/26/19 15:36:53]    1.11s,  1350.7MB/s :seq_read_c_style_io
+[08/26/19 15:37:08]    0.35s,  4318.5MB/s :write_hdf5
+[08/26/19 15:37:08]    0.25s,  6036.2MB/s :read_hdf5
+[08/26/19 15:38:19]   32.28s,    46.5MB/s :seq_write_hdf5
+[08/26/19 15:38:47]   13.62s,   110.1MB/s :write_mio
+[08/26/19 15:38:48]    0.49s,  3079.9MB/s :read_mio
+[08/26/19 15:39:42]   15.55s,    96.4MB/s :seq_write_mio
+[08/26/19 15:39:43]    0.44s,  3401.7MB/s :seq_read_mio
+[08/26/19 15:40:24]    2.24s,   669.5MB/s :seq_write_cereal
+[08/26/19 15:41:12]   47.64s,    31.5MB/s :seq_read_cereal
+[08/26/19 15:41:13]    0.53s,  2815.7MB/s :write_cereal
+[08/26/19 15:41:25]   12.21s,   122.9MB/s :read_cereal
+[08/26/19 15:41:35]   10.14s,   147.9MB/s :write_tiledb
+[08/26/19 15:41:37]    1.66s,   901.5MB/s :read_tiledb
+[08/26/19 15:41:37] Total time: 415.41s
+

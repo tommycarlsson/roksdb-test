@@ -15,6 +15,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <memory>
 
 #include <rocksdb/db.h>
 #include <rocksdb/slice.h>
@@ -25,6 +26,7 @@
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <args.hxx>
+#include <tiledb/tiledb>
 
 #include "timer.h"
 #include "fake.h"
@@ -32,7 +34,7 @@
 using namespace rocksdb;
 using namespace std;
 
-auto logger = spdlog::basic_logger_st("logger", "log.txt");
+auto logger = spdlog::basic_logger_st("logger", "test.log");
 bool random = false;
 
 const size_t bufsize = 1024 * 1024;
@@ -727,6 +729,79 @@ double read_cereal(Blob& blob, int count, string file_name)
     return timer.elapsedSeconds();
 }
 
+double write_tiledb(Blob& blob, int count, string file_name)
+{
+    using namespace tiledb;
+
+    Timer timer;
+    for (auto i(0); i != count; ++i)
+    {
+        auto name = file_name + to_string(i);
+        timer.start();
+
+        Context ctx;
+
+        ArraySchema schema(ctx, TILEDB_DENSE);
+
+        Domain domain(ctx);
+        domain.add_dimension(Dimension::create<int8_t>(ctx, "blob", { { 1, 1 } }, 1));
+
+        schema.set_domain(domain).set_order({ { TILEDB_ROW_MAJOR, TILEDB_ROW_MAJOR } });
+
+        schema.add_attribute(Attribute::create<vector<char>>(ctx, "data"));
+
+        Array::create(name, schema);
+
+        Array array(ctx, name, TILEDB_WRITE);
+        
+        vector<uint64_t> off(1, 0);
+
+        Query query(ctx, array);
+        query.set_layout(TILEDB_ROW_MAJOR)
+            .set_buffer("data", off, blob);
+        query.submit();
+        array.close();
+
+        timer.stop();
+        cout << '#';
+    }
+    cout << endl;
+    return timer.elapsedSeconds();
+}
+
+double read_tiledb(Blob& blob, int count, string file_name)
+{
+    using namespace tiledb;
+
+    Timer timer;
+    for (auto i(0); i != count; ++i)
+    {
+        auto name = file_name + to_string(i);
+        timer.start();
+
+        Context ctx;
+
+        Array array(ctx, name, TILEDB_READ);
+
+        vector<int8_t> const subarray = { 1, 1 };
+
+        auto max_el_map = array.max_buffer_elements(subarray);
+        std::vector<uint64_t> off(max_el_map["data"].first);
+
+        Query query(ctx, array);
+        query.set_subarray(subarray)
+            .set_layout(TILEDB_ROW_MAJOR)
+            .set_buffer("data", off, blob);
+        query.submit();
+        array.close();
+
+        timer.stop();
+        cout << '#';
+    }
+    cout << endl;
+    return timer.elapsedSeconds();
+}
+
 void emptyWorkingSet()
 {
 #ifdef _WIN32
@@ -771,6 +846,8 @@ int main(int argc, char* argv[])
     os << "19\t seq_read_cereal\n";
     os << "20\t write_cereal\n";
     os << "21\t read_cereal\n";
+    os << "22\t write_tiledb\n";
+    os << "23\t read_tiledb\n";
 
     args::ArgumentParser parser("This is a io performance test program.", os.str());
     args::HelpFlag help(parser, "help", "Display this help menu", { 'h', "help" });
@@ -976,6 +1053,20 @@ int main(int argc, char* argv[])
         cout << "Running read_cereal ..." << endl;
         secs = read_cereal(blob, nbr_of_blobs, path + "/write_cereal" + extension);
         print_result(secs, "read_cereal", blob.size(), nbr_of_blobs);
+    }
+
+    if (t.empty() || find(t.begin(), t.end(), 22) != t.end())
+    {
+        cout << "Running write_tiledb ..." << endl;
+        secs = write_tiledb(blob, nbr_of_blobs, path + "/write_tiledb" + extension);
+        print_result(secs, "write_tiledb", blob.size(), nbr_of_blobs);
+    }
+
+    if (t.empty() || find(t.begin(), t.end(), 23) != t.end())
+    {
+        cout << "Running read_tiledb ..." << endl;
+        secs = read_tiledb(blob, nbr_of_blobs, path + "/write_tiledb" + extension);
+        print_result(secs, "read_tiledb", blob.size(), nbr_of_blobs);
     }
 
     timer.stop();
